@@ -1,0 +1,42 @@
+# Binary / Executables
+bin/
+main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Dependency / Vendor
+vendor/
+
+# Environment Variables (PENTING: Jangan hapus ini!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Logs
+*.log
+
+# Go specific
+go.sum
+# Catatan: go.sum sebaiknya di-commit, namun jika Anda dalam tahap 
+# eksperimen ketat, beberapa orang mengabaikannya. Rekomendasi: TETAP COMMIT.
+
+# SQLC / Generated Files (Opsional)
+# Jika Anda ingin men-generate code dan tidak ingin memenuhi git:
+# internal/db/*.go

@@ -1,0 +1,36 @@
+services:
+  # Database PostgreSQL
+  postgres:
+    image: postgres:18-alpine
+    container_name: go_hris_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d go_hris_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Aplikasi Go
+  app:
+    build: .
+    container_name: go_hris_app
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_URL=postgres://user:password@postgres:5432/go_hris_dev?sslmode=disable
+      - PORT=3000
+
+  # Outbox Processor Worker
+volumes:
+  postgres_data:
