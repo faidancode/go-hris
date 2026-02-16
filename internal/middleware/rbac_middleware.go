@@ -1,6 +1,7 @@
-package rbac
+package middleware
 
 import (
+	"go-hris/internal/rbac"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,7 @@ const (
 )
 
 // Middleware factory
-func Authorize(service Service, resource, action string) gin.HandlerFunc {
+func RBACAuthorize(service rbac.Service, resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		// Ambil dari context (biasanya di-set oleh JWT middleware)
@@ -29,7 +30,7 @@ func Authorize(service Service, resource, action string) gin.HandlerFunc {
 			return
 		}
 
-		req := EnforceRequest{
+		req := rbac.EnforceRequest{
 			EmployeeID: employeeID.(string),
 			CompanyID:  companyID.(string),
 			Resource:   resource,
@@ -52,7 +53,7 @@ func Authorize(service Service, resource, action string) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
+		c.Set("has_read_all", allowed)
 		c.Next()
 	}
 }

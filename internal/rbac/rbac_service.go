@@ -2,6 +2,7 @@ package rbac
 
 import "github.com/casbin/casbin/v2"
 
+//go:generate mockgen -source=rbac_service.go -destination=mock/rbac_service_mock.go -package=mock
 type Service interface {
 	LoadCompanyPolicy(companyID string) error
 	Enforce(req EnforceRequest) (bool, error)

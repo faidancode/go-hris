@@ -40,3 +40,5 @@ go.sum
 # SQLC / Generated Files (Opsional)
 # Jika Anda ingin men-generate code dan tidak ingin memenuhi git:
 # internal/db/*.go
+
+/reference/*

@@ -2,6 +2,7 @@ package rbac
 
 import "gorm.io/gorm"
 
+//go:generate mockgen -source=rbac_repo.go -destination=mock/rbac_repo_mock.go -package=mock
 type Repository interface {
 	GetEmployeeRoles(companyID string) ([]EmployeeRoleRow, error)
 	GetRolePermissions(companyID string) ([]RolePermissionRow, error)
