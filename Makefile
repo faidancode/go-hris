@@ -34,35 +34,41 @@ help:
 	@echo "Run:"
 	@echo "  make run"
 
+
 # =========================
 # MIGRATION
 # =========================
+
 .PHONY: migrate-create
 migrate-create:
 	$(MIGRATE) create -ext sql -dir $(MIGRATIONS_PATH) -seq $(name)
 
 .PHONY: migrate-up
 migrate-up:
-	$(MIGRATE) -path $(MIGRATIONS_PATH) -database '$(DB_MIGRATION_URL)' up
-
+	@ENCODED_PW=$$(echo -n "$(DB_PASSWORD)" | sed 's/%/%25/g; s/@/%40/g; s/:/%3A/g; s/\//%2F/g; s/?/%3F/g; s/#/%23/g; s/\&/%26/g; s/=/%3D/g') && \
+	$(MIGRATE) -path $(MIGRATIONS_PATH) -database "postgres://$(DB_USER):$$ENCODED_PW@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" up
 
 .PHONY: migrate-down
 migrate-down:
-	$(MIGRATE) -path $(MIGRATIONS_PATH) -database '$(DB_MIGRATION_URL)' down 1
+	@ENCODED_PW=$$(echo -n "$(DB_PASSWORD)" | sed 's/%/%25/g; s/@/%40/g; s/:/%3A/g; s/\//%2F/g; s/?/%3F/g; s/#/%23/g; s/\&/%26/g; s/=/%3D/g') && \
+	$(MIGRATE) -path $(MIGRATIONS_PATH) -database "postgres://$(DB_USER):$$ENCODED_PW@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" down 1
 
 .PHONY: migrate-force
 migrate-force:
-	$(MIGRATE) -path $(MIGRATIONS_PATH) -database '$(DB_MIGRATION_URL)' force $(version)
+	@ENCODED_PW=$$(echo -n "$(DB_PASSWORD)" | sed 's/%/%25/g; s/@/%40/g; s/:/%3A/g; s/\//%2F/g; s/?/%3F/g; s/#/%23/g; s/\&/%26/g; s/=/%3D/g') && \
+	$(MIGRATE) -path $(MIGRATIONS_PATH) -database "postgres://$(DB_USER):$$ENCODED_PW@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" force $(version)
 
 .PHONY: migrate-status
 migrate-status:
-	$(MIGRATE) -path $(MIGRATIONS_PATH) -database '$(DB_MIGRATION_URL)' version
+	@ENCODED_PW=$$(echo -n "$(DB_PASSWORD)" | sed 's/%/%25/g; s/@/%40/g; s/:/%3A/g; s/\//%2F/g; s/?/%3F/g; s/#/%23/g; s/\&/%26/g; s/=/%3D/g') && \
+	$(MIGRATE) -path $(MIGRATIONS_PATH) -database "postgres://$(DB_USER):$$ENCODED_PW@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" version
 
 # shortcut untuk dirty migration
 .PHONY: migrate-fix
 migrate-fix:
-	$(MIGRATE) -path $(MIGRATIONS_PATH) -database '$(DB_MIGRATION_URL)' force $(version)
-	$(MIGRATE) -path $(MIGRATIONS_PATH) -database '$(DB_MIGRATION_URL)' up
+	@ENCODED_PW=$$(echo -n "$(DB_PASSWORD)" | sed 's/%/%25/g; s/@/%40/g; s/:/%3A/g; s/\//%2F/g; s/?/%3F/g; s/#/%23/g; s/\&/%26/g; s/=/%3D/g') && \
+	$(MIGRATE) -path $(MIGRATIONS_PATH) -database "postgres://$(DB_USER):$$ENCODED_PW@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" force $(version) && \
+	$(MIGRATE) -path $(MIGRATIONS_PATH) -database "postgres://$(DB_USER):$$ENCODED_PW@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=$(DB_SSLMODE)" up
 
 # =========================
 # DOCKER
@@ -111,8 +117,8 @@ docker-ls:
 # =========================
 .PHONY: reset-dev
 reset-dev:
-	$(MIGRATE) -path $(MIGRATIONS_PATH) -database '$(DB_MIGRATION_URL)' drop -f
-	$(MIGRATE) -path $(MIGRATIONS_PATH) -database '$(DB_MIGRATION_URL)' up
+	$(MIGRATE) -path $(MIGRATIONS_PATH) -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}" drop -f
+	$(MIGRATE) -path $(MIGRATIONS_PATH) -database "postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}" up
 
 # =========================
 # TEST

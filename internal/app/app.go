@@ -10,9 +10,17 @@ import (
 
 func BuildApp(router *gin.Engine) error {
 	// 1. Setup Infrastructure
-	_, err := connection.ConnectGORMWithRetry(os.Getenv("DB_URL"), 5)
+	_, err := connection.ConnectGORMWithRetry(
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_SSLMODE"),
+		5,
+	)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	log.Println("✅ Database connection established")
 
