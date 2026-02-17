@@ -40,4 +40,4 @@ VALUES
     (gen_random_uuid (), 'company', 'update'),
     -- ATTENDANCE
     (gen_random_uuid (), 'attendance', 'read'),
-    (gen_random_uuid (), 'attendance', 'manage') ON CONFLICT (resource, action) DO NOTHING;
+    (gen_random_uuid (), 'attendance', 'manage') ON CONFLICT (resource, action) DO NOTHING

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"go-hris/internal/shared/connection"
 	"log"
 	"os"
@@ -10,7 +11,7 @@ import (
 
 func BuildApp(router *gin.Engine) error {
 	// 1. Setup Infrastructure
-	_, err := connection.ConnectGORMWithRetry(
+	gormDB, err := connection.ConnectGORMWithRetry(
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
@@ -22,17 +23,28 @@ func BuildApp(router *gin.Engine) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("✅ Database connection established")
+	log.Println("Database connection established")
 
-	redisClient, err := connection.ConnectRedisWithRetry(os.Getenv("REDIS_ADDR"), 5)
+	sqlDB, err := gormDB.DB()
 	if err != nil {
 		return err
 	}
-	log.Println("✅ Redis connection established")
-	_ = redisClient
+
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		return fmt.Errorf("REDIS_ADDR is required")
+	}
+
+	redisClient, err := connection.ConnectRedisWithRetry(redisAddr, 5)
+	if err != nil {
+		return err
+	}
+	log.Println("Redis connection established")
 
 	// Register Modules & Routes
-	// registerModules(router, db, redisClient, cloudinaryService)
+	if err := registerModules(router, sqlDB, gormDB, redisClient); err != nil {
+		return err
+	}
 
 	return nil
 }

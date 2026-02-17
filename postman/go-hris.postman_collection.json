@@ -1,0 +1,556 @@
+{
+  "info": {
+    "_postman_id": "0f5ed52f-96f4-4ea2-bf0b-e4ed4e27f083",
+    "name": "go-hris API",
+    "description": "Collection for go-hris modules: auth, department, employee, employee-salary, payroll, position, and rbac.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": \"{{company_id}}\",\n  \"employee_id\": \"{{employee_id}}\",\n  \"email\": \"{{email}}\",\n  \"name\": \"{{name}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = {};",
+                  "try { jsonData = pm.response.json(); } catch (e) {}",
+                  "const data = jsonData.data || {};",
+                  "if (data.access_token) pm.collectionVariables.set('access_token', data.access_token);",
+                  "if (data.refresh_token) pm.collectionVariables.set('refresh_token', data.refresh_token);",
+                  "if (data.user && data.user.company_id) pm.collectionVariables.set('company_id', data.user.company_id);",
+                  "if (data.user && data.user.employee_id) pm.collectionVariables.set('employee_id', data.user.employee_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Type",
+                "value": "mobile"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/auth/login"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/auth/me"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Client-Type",
+                "value": "mobile"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Department",
+      "item": [
+        {
+          "name": "Get All Departments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/departments"
+          }
+        },
+        {
+          "name": "Create Department",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Finance\",\n  \"description\": \"Finance Department\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/departments"
+          }
+        },
+        {
+          "name": "Get Department By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/departments/{{department_id}}"
+          }
+        },
+        {
+          "name": "Update Department",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Finance Updated\",\n  \"description\": \"Finance Department Updated\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/departments/{{department_id}}"
+          }
+        },
+        {
+          "name": "Delete Department",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/departments/{{department_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Position",
+      "item": [
+        {
+          "name": "Get All Positions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/positions"
+          }
+        },
+        {
+          "name": "Create Position",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Senior Backend Engineer\",\n  \"description\": \"Handles backend services\",\n  \"department_id\": \"{{department_id}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/positions"
+          }
+        },
+        {
+          "name": "Get Position By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/positions/{{position_id}}"
+          }
+        },
+        {
+          "name": "Update Position",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lead Backend Engineer\",\n  \"description\": \"Leads backend services\",\n  \"department_id\": \"{{department_id}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/positions/{{position_id}}"
+          }
+        },
+        {
+          "name": "Delete Position",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/positions/{{position_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employee",
+      "item": [
+        {
+          "name": "Get All Employees",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/employees"
+          }
+        },
+        {
+          "name": "Create Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/employees"
+          }
+        },
+        {
+          "name": "Get Employee By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/employees/{{employee_target_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Employee Salary",
+      "item": [
+        {
+          "name": "Get All Employee Salaries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/employee-salaries"
+          }
+        },
+        {
+          "name": "Create Employee Salary",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employee_target_id}}\",\n  \"base_salary\": 10000000,\n  \"effective_date\": \"2026-02-01\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/employee-salaries"
+          }
+        },
+        {
+          "name": "Get Employee Salary By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/employee-salaries/{{employee_salary_id}}"
+          }
+        },
+        {
+          "name": "Update Employee Salary",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employee_target_id}}\",\n  \"base_salary\": 12000000,\n  \"effective_date\": \"2026-03-01\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/employee-salaries/{{employee_salary_id}}"
+          }
+        },
+        {
+          "name": "Delete Employee Salary",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/employee-salaries/{{employee_salary_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payroll",
+      "item": [
+        {
+          "name": "Get All Payrolls",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/payrolls"
+          }
+        },
+        {
+          "name": "Create Payroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotency_key}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employee_target_id}}\",\n  \"period_start\": \"2026-02-01\",\n  \"period_end\": \"2026-02-28\",\n  \"base_salary\": 10000000,\n  \"allowance\": 200000,\n  \"deduction\": 50000\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/payrolls"
+          }
+        },
+        {
+          "name": "Get Payroll By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}"
+          }
+        },
+        {
+          "name": "Update Payroll",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employee_target_id}}\",\n  \"period_start\": \"2026-02-01\",\n  \"period_end\": \"2026-02-28\",\n  \"base_salary\": 10000000,\n  \"allowance\": 250000,\n  \"deduction\": 50000,\n  \"status\": \"PROCESSED\",\n  \"approved_by\": \"{{employee_id}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}"
+          }
+        },
+        {
+          "name": "Delete Payroll",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "RBAC",
+      "item": [
+        {
+          "name": "Enforce",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"company_id\": \"{{company_id}}\",\n  \"resource\": \"department\",\n  \"action\": \"read\"\n}"
+            },
+            "url": "{{base_url}}/rbac/enforce"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "api_prefix", "value": "api/v1" },
+    { "key": "email", "value": "admin@example.com" },
+    { "key": "password", "value": "password123" },
+    { "key": "name", "value": "Admin User" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "company_id", "value": "" },
+    { "key": "employee_id", "value": "" },
+    { "key": "department_id", "value": "" },
+    { "key": "position_id", "value": "" },
+    { "key": "employee_target_id", "value": "" },
+    { "key": "employee_salary_id", "value": "" },
+    { "key": "payroll_id", "value": "" },
+    { "key": "idempotency_key", "value": "payroll-create-001" }
+  ]
+}
