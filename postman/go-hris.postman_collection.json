@@ -514,6 +514,92 @@
       ]
     },
     {
+      "name": "Leave",
+      "item": [
+        {
+          "name": "Get All Leaves",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/leaves"
+          }
+        },
+        {
+          "name": "Create Leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employee_target_id}}\",\n  \"leave_type\": \"ANNUAL\",\n  \"start_date\": \"2026-03-10\",\n  \"end_date\": \"2026-03-11\",\n  \"reason\": \"Family matters\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/leaves"
+          }
+        },
+        {
+          "name": "Get Leave By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/leaves/{{leave_id}}"
+          }
+        },
+        {
+          "name": "Update Leave",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employee_target_id}}\",\n  \"leave_type\": \"ANNUAL\",\n  \"start_date\": \"2026-03-10\",\n  \"end_date\": \"2026-03-11\",\n  \"reason\": \"Family matters\",\n  \"status\": \"APPROVED\",\n  \"approved_by\": \"{{employee_id}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/leaves/{{leave_id}}"
+          }
+        },
+        {
+          "name": "Delete Leave",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/leaves/{{leave_id}}"
+          }
+        }
+      ]
+    },
+    {
       "name": "RBAC",
       "item": [
         {
@@ -551,6 +637,7 @@
     { "key": "employee_target_id", "value": "" },
     { "key": "employee_salary_id", "value": "" },
     { "key": "payroll_id", "value": "" },
+    { "key": "leave_id", "value": "" },
     { "key": "idempotency_key", "value": "payroll-create-001" }
   ]
 }

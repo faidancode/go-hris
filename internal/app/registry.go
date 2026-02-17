@@ -6,6 +6,7 @@ import (
 	"go-hris/internal/department"
 	"go-hris/internal/employee"
 	"go-hris/internal/employeesalary"
+	"go-hris/internal/leave"
 	"go-hris/internal/payroll"
 	"go-hris/internal/position"
 	"go-hris/internal/rbac"
@@ -24,6 +25,7 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 	departmentRepo := department.NewRepository(gormDB)
 	employeeRepo := employee.NewRepository(gormDB)
 	employeeSalaryRepo := employeesalary.NewRepository(gormDB)
+	leaveRepo := leave.NewRepository(gormDB)
 	payrollRepo := payroll.NewRepository(gormDB)
 	positionRepo := position.NewRepository(gormDB)
 
@@ -39,6 +41,7 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 	departmentService := department.NewService(db, departmentRepo)
 	employeeService := employee.NewService(db, employeeRepo)
 	employeeSalaryService := employeesalary.NewService(db, employeeSalaryRepo)
+	leaveService := leave.NewService(db, leaveRepo)
 	payrollService := payroll.NewService(db, payrollRepo)
 	positionService := position.NewService(db, positionRepo)
 
@@ -47,6 +50,7 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 	departmentHandler := department.NewHandler(departmentService)
 	employeeHandler := employee.NewHandler(employeeService)
 	employeeSalaryHandler := employeesalary.NewHandler(employeeSalaryService)
+	leaveHandler := leave.NewHandler(leaveService)
 	payrollHandler := payroll.NewHandlerWithRedis(payrollService, rdb)
 	positionHandler := position.NewHandler(positionService)
 	rbacHandler := rbac.NewHandler(rbacService)
@@ -58,6 +62,7 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 		department.RegisterRoutes(api, departmentHandler, rbacService)
 		employee.RegisterRoutes(api, employeeHandler, rbacService)
 		employeesalary.RegisterRoutes(api, employeeSalaryHandler, rbacService)
+		leave.RegisterRoutes(api, leaveHandler, rbacService)
 		payroll.RegisterRoutes(api, payrollHandler, rbacService, rdb)
 		position.RegisterRoutes(api, positionHandler, rbacService)
 	}
