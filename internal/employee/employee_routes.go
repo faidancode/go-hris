@@ -13,12 +13,10 @@ func RegisterRoutes(
 	rbacService rbac.Service,
 ) {
 	employees := r.Group("/employees")
-
 	employees.Use(middleware.AuthMiddleware())
-
 	{
-		employees.GET("/", middleware.RBACAuthorize(rbacService, "employee", "read"), handler.GetAll)
+		employees.GET("", middleware.RBACAuthorize(rbacService, "employee", "read"), handler.GetAll)
 		employees.GET("/:id", middleware.RBACAuthorize(rbacService, "employee", "read"), handler.GetById)
-		employees.POST("/", middleware.RBACAuthorize(rbacService, "employee", "create"), handler.Create)
+		employees.POST("", middleware.RBACAuthorize(rbacService, "employee", "create"), handler.Create)
 	}
 }

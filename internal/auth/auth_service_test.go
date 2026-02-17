@@ -97,21 +97,19 @@ func TestService_Register(t *testing.T) {
 			Password:   "password123",
 		}
 
-		// 1. Mock Find Employee
+		// Mock Find Employee: Sesuaikan parameter ID menjadi string sesuai logic service
 		mockEmployeeRepo.EXPECT().
-			FindByID(ctx, eID.String()).
+			FindByIDAndCompany(ctx, req.CompanyID, req.EmployeeID).
 			Return(&employee.Employee{
 				ID:        eID,
 				CompanyID: cID,
 				Name:      "John Doe",
 			}, nil)
 
-		// 2. Mock Create User
 		mockRepo.EXPECT().
 			Create(ctx, gomock.Any()).
 			Return(nil)
 
-		// 3. Mock Load Policy (dipanggil 2x di kode service Anda)
 		mockRBAC.EXPECT().
 			LoadCompanyPolicy(cID.String()).
 			Return(nil).
@@ -121,19 +119,22 @@ func TestService_Register(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, req.Email, resp.Email)
-		assert.Equal(t, "Employee", resp.Role) // Sesuaikan dengan return di service
+		assert.Equal(t, "Employee", resp.Role)
 		assert.Equal(t, cID.String(), resp.CompanyID)
 	})
 
 	t.Run("Employee Not Found", func(t *testing.T) {
+		cID := uuid.New().String()
 		eID := uuid.New().String()
 		req := auth.RegisterRequest{
+			CompanyID:  cID, // Tambahkan CompanyID agar tidak nil
 			EmployeeID: eID,
 			Password:   "password123",
 		}
 
+		// Gunakan variabel string langsung
 		mockEmployeeRepo.EXPECT().
-			FindByID(ctx, eID).
+			FindByIDAndCompany(ctx, cID, eID).
 			Return(nil, errors.New("not found"))
 
 		_, err := service.Register(ctx, req)
@@ -145,14 +146,14 @@ func TestService_Register(t *testing.T) {
 		cID := uuid.New()
 		eID := uuid.New()
 		req := auth.RegisterRequest{
+			CompanyID:  cID.String(),
 			EmployeeID: eID.String(),
 			Email:      "duplicate@example.com",
 			Password:   "password123",
 		}
 
-		// Harus melewati FindByID dulu
 		mockEmployeeRepo.EXPECT().
-			FindByID(ctx, eID.String()).
+			FindByIDAndCompany(ctx, req.CompanyID, req.EmployeeID).
 			Return(&employee.Employee{ID: eID, CompanyID: cID}, nil)
 
 		mockRepo.EXPECT().

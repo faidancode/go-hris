@@ -1,4 +1,4 @@
-package employee
+package department
 
 import (
 	"errors"
@@ -17,7 +17,7 @@ func NewHandler(service Service) *Handler {
 
 func (h *Handler) Create(c *gin.Context) {
 	companyID := c.GetString("company_id")
-	var req CreateEmployeeRequest
+	var req CreateDepartmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -71,7 +71,7 @@ func (h *Handler) Update(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
 	companyID := c.GetString("company_id")
-	var req UpdateEmployeeRequest
+	var req UpdateDepartmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

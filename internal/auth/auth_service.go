@@ -145,21 +145,26 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		return AuthResponse{}, err
 	}
 
-	// 2. Pastikan employee exist
+	// 2. Validasi EmployeeID
 	eID, err := uuid.Parse(req.EmployeeID)
 	if err != nil {
 		return AuthResponse{}, employeeerrors.ErrInvalidEmployeeID
 	}
-	employee, err := s.employeeRepo.FindByID(ctx, eID.String())
+
+	// 3. Pastikan employee exist & ambil data CompanyID
+	// Note: Jika di RegisterRequest tidak ada CompanyID, pastikan Repository
+	// memiliki method FindByID (tanpa filter company) atau gunakan companyID dari request jika ada.
+	employee, err := s.employeeRepo.FindByIDAndCompany(ctx, req.CompanyID, eID.String())
 	if err != nil {
+		// Jika tidak ditemukan atau company tidak cocok
 		return AuthResponse{}, employeeerrors.ErrEmployeeNotFound
 	}
 
-	// 3. Buat user
+	// 4. Buat objek User menggunakan data dari Employee yang ditemukan
 	user := &User{
 		ID:         uuid.New(),
 		EmployeeID: &eID,
-		CompanyID:  employee.CompanyID,
+		CompanyID:  employee.CompanyID, // Mengambil CompanyID asli dari data Employee
 		Email:      req.Email,
 		Name:       req.Name,
 		Password:   string(hashed),

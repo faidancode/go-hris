@@ -1,4 +1,4 @@
-package employee
+package department
 
 import (
 	"context"
@@ -8,13 +8,13 @@ import (
 	"gorm.io/gorm"
 )
 
-//go:generate mockgen -source=employee_repo.go -destination=mock/employee_repo_mock.go -package=mock
+//go:generate mockgen -source=department_repo.go -destination=mock/department_repo_mock.go -package=mock
 type Repository interface {
 	WithTx(tx *sql.Tx) Repository
-	Create(ctx context.Context, dept *Employee) error
-	FindAllByCompany(ctx context.Context, companyID string) ([]Employee, error)
-	FindByIDAndCompany(ctx context.Context, companyID string, id string) (*Employee, error)
-	Update(ctx context.Context, dept *Employee) error
+	Create(ctx context.Context, dept *Department) error
+	FindAllByCompany(ctx context.Context, companyID string) ([]Department, error)
+	FindByIDAndCompany(ctx context.Context, companyID string, id string) (*Department, error)
+	Update(ctx context.Context, dept *Department) error
 	Delete(ctx context.Context, companyID string, id string) error
 }
 
@@ -34,32 +34,32 @@ func (r *repository) WithTx(tx *sql.Tx) Repository {
 	}
 }
 
-func (r *repository) Create(ctx context.Context, dept *Employee) error {
+func (r *repository) Create(ctx context.Context, dept *Department) error {
 	return r.db.WithContext(ctx).Create(dept).Error
 }
 
-func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Employee, error) {
-	var depts []Employee
+func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Department, error) {
+	var depts []Department
 	err := r.db.WithContext(ctx).
 		Scopes(tenant.Scope(companyID)).
 		Find(&depts).Error
 	return depts, err
 }
 
-func (r *repository) FindByIDAndCompany(ctx context.Context, id string, companyID string) (*Employee, error) {
-	var dept Employee
+func (r *repository) FindByIDAndCompany(ctx context.Context, id string, companyID string) (*Department, error) {
+	var dept Department
 	err := r.db.WithContext(ctx).
 		Scopes(tenant.Scope(companyID)).
 		First(&dept).Error
 	return &dept, err
 }
 
-func (r *repository) Update(ctx context.Context, dept *Employee) error {
+func (r *repository) Update(ctx context.Context, dept *Department) error {
 	return r.db.WithContext(ctx).Save(dept).Error
 }
 
 func (r *repository) Delete(ctx context.Context, id string, companyID string) error {
 	return r.db.WithContext(ctx).
 		Scopes(tenant.Scope(companyID)).
-		Delete(&Employee{}).Error
+		Delete(&Department{}).Error
 }

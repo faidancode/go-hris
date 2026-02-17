@@ -81,13 +81,17 @@ docker-up:
 docker-down:
 	docker-compose down
 
+.PHONY: docker-stop
+docker-stop:
+	docker-compose stop	
+
 .PHONY: docker-infra
 docker-infra:
-	docker-compose up -d postgres
+	docker-compose up -d postgres redis
 
 .PHONY: docker-infra-stop
 docker-infra-stop:
-	docker-compose stop postgres
+	docker-compose stop postgres redis
 
 .PHONY: docker-logs
 docker-logs:
