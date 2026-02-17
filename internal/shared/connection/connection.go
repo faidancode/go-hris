@@ -1,10 +1,12 @@
 package connection
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -56,4 +58,23 @@ func ConnectGORMWithRetry(
 	}
 
 	return nil, fmt.Errorf("database connection failed after %d retries: %w", maxRetries, lastErr)
+}
+
+func ConnectRedisWithRetry(addr string, maxRetries int) (*redis.Client, error) {
+	rdb := redis.NewClient(&redis.Options{
+		Addr: addr,
+	})
+
+	for i := 1; i <= maxRetries; i++ {
+		ctx := context.Background()
+		if err := rdb.Ping(ctx).Err(); err == nil {
+			log.Println("✅ Connected to Redis")
+			return rdb, nil
+		}
+
+		log.Printf("⚠️ Redis retry %d/%d failed", i, maxRetries)
+		time.Sleep(5 * time.Second)
+	}
+
+	return nil, fmt.Errorf("failed to connect redis")
 }

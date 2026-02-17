@@ -24,6 +24,13 @@ func BuildApp(router *gin.Engine) error {
 	}
 	log.Println("✅ Database connection established")
 
+	redisClient, err := connection.ConnectRedisWithRetry(os.Getenv("REDIS_ADDR"), 5)
+	if err != nil {
+		return err
+	}
+	log.Println("✅ Redis connection established")
+	_ = redisClient
+
 	// Register Modules & Routes
 	// registerModules(router, db, redisClient, cloudinaryService)
 
