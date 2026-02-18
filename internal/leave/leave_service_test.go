@@ -18,6 +18,7 @@ type fakeLeaveRepository struct {
 	withTxFn                 func(tx *sql.Tx) leave.Repository
 	createFn                 func(ctx context.Context, l *leave.Leave) error
 	findAllByCompanyFn       func(ctx context.Context, companyID string) ([]leave.Leave, error)
+	findAllByCompanyEmpFn    func(ctx context.Context, companyID, employeeID string) ([]leave.Leave, error)
 	findByIDAndCompanyFn     func(ctx context.Context, companyID, id string) (*leave.Leave, error)
 	updateFn                 func(ctx context.Context, l *leave.Leave) error
 	deleteFn                 func(ctx context.Context, companyID, id string) error
@@ -42,6 +43,13 @@ func (f *fakeLeaveRepository) Create(ctx context.Context, l *leave.Leave) error 
 func (f *fakeLeaveRepository) FindAllByCompany(ctx context.Context, companyID string) ([]leave.Leave, error) {
 	if f.findAllByCompanyFn != nil {
 		return f.findAllByCompanyFn(ctx, companyID)
+	}
+	return nil, nil
+}
+
+func (f *fakeLeaveRepository) FindAllByCompanyAndEmployee(ctx context.Context, companyID, employeeID string) ([]leave.Leave, error) {
+	if f.findAllByCompanyEmpFn != nil {
+		return f.findAllByCompanyEmpFn(ctx, companyID, employeeID)
 	}
 	return nil, nil
 }
@@ -220,7 +228,7 @@ func TestLeaveService_GetAll(t *testing.T) {
 			}, nil
 		}
 
-		resp, err := deps.service.GetAll(ctx, companyID)
+		resp, err := deps.service.GetAll(ctx, companyID, uuid.New().String(), true)
 
 		assert.NoError(t, err)
 		assert.Len(t, resp, 1)
@@ -232,11 +240,11 @@ func TestLeaveService_GetAll(t *testing.T) {
 		deps := setupLeaveServiceTest(t)
 		defer deps.db.Close()
 
-		deps.repo.findAllByCompanyFn = func(ctx context.Context, cid string) ([]leave.Leave, error) {
+		deps.repo.findAllByCompanyEmpFn = func(ctx context.Context, cid, employeeID string) ([]leave.Leave, error) {
 			return nil, errors.New("db error")
 		}
 
-		resp, err := deps.service.GetAll(ctx, companyID)
+		resp, err := deps.service.GetAll(ctx, companyID, uuid.New().String(), false)
 
 		assert.Error(t, err)
 		assert.Nil(t, resp)

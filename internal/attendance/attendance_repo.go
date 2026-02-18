@@ -15,6 +15,7 @@ type Repository interface {
 	Create(ctx context.Context, a *Attendance) error
 	FindByEmployeeAndDate(ctx context.Context, companyID, employeeID string, date time.Time) (*Attendance, error)
 	FindAllByCompany(ctx context.Context, companyID string) ([]Attendance, error)
+	FindAllByCompanyAndEmployee(ctx context.Context, companyID, employeeID string) ([]Attendance, error)
 	Update(ctx context.Context, a *Attendance) error
 }
 
@@ -49,6 +50,16 @@ func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]
 	var rows []Attendance
 	err := r.db.WithContext(ctx).
 		Scopes(tenant.Scope(companyID)).
+		Order("attendance_date DESC, clock_in DESC").
+		Find(&rows).Error
+	return rows, err
+}
+
+func (r *repository) FindAllByCompanyAndEmployee(ctx context.Context, companyID, employeeID string) ([]Attendance, error) {
+	var rows []Attendance
+	err := r.db.WithContext(ctx).
+		Scopes(tenant.Scope(companyID)).
+		Where("employee_id = ?", employeeID).
 		Order("attendance_date DESC, clock_in DESC").
 		Find(&rows).Error
 	return rows, err

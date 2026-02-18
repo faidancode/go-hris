@@ -14,20 +14,24 @@ import (
 )
 
 type fakeRepo struct {
-	withTxFn                 func(tx *sql.Tx) Repository
-	createFn                 func(ctx context.Context, a *Attendance) error
-	findByEmployeeAndDateFn  func(ctx context.Context, companyID, employeeID string, date time.Time) (*Attendance, error)
-	findAllByCompanyFn       func(ctx context.Context, companyID string) ([]Attendance, error)
-	updateFn                 func(ctx context.Context, a *Attendance) error
+	withTxFn                func(tx *sql.Tx) Repository
+	createFn                func(ctx context.Context, a *Attendance) error
+	findByEmployeeAndDateFn func(ctx context.Context, companyID, employeeID string, date time.Time) (*Attendance, error)
+	findAllByCompanyFn      func(ctx context.Context, companyID string) ([]Attendance, error)
+	findAllByCompanyEmpFn   func(ctx context.Context, companyID, employeeID string) ([]Attendance, error)
+	updateFn                func(ctx context.Context, a *Attendance) error
 }
 
-func (f *fakeRepo) WithTx(tx *sql.Tx) Repository { return f.withTxFn(tx) }
+func (f *fakeRepo) WithTx(tx *sql.Tx) Repository                    { return f.withTxFn(tx) }
 func (f *fakeRepo) Create(ctx context.Context, a *Attendance) error { return f.createFn(ctx, a) }
 func (f *fakeRepo) FindByEmployeeAndDate(ctx context.Context, companyID, employeeID string, date time.Time) (*Attendance, error) {
 	return f.findByEmployeeAndDateFn(ctx, companyID, employeeID, date)
 }
 func (f *fakeRepo) FindAllByCompany(ctx context.Context, companyID string) ([]Attendance, error) {
 	return f.findAllByCompanyFn(ctx, companyID)
+}
+func (f *fakeRepo) FindAllByCompanyAndEmployee(ctx context.Context, companyID, employeeID string) ([]Attendance, error) {
+	return f.findAllByCompanyEmpFn(ctx, companyID, employeeID)
 }
 func (f *fakeRepo) Update(ctx context.Context, a *Attendance) error { return f.updateFn(ctx, a) }
 

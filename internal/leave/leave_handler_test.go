@@ -38,7 +38,7 @@ func decodeEnvelope(t *testing.T, body []byte) apiEnvelope {
 
 type fakeLeaveService struct {
 	createFn  func(ctx context.Context, companyID, actorID string, req leave.CreateLeaveRequest) (leave.LeaveResponse, error)
-	getAllFn  func(ctx context.Context, companyID string) ([]leave.LeaveResponse, error)
+	getAllFn  func(ctx context.Context, companyID, actorID string, canReadAll bool) ([]leave.LeaveResponse, error)
 	getByIDFn func(ctx context.Context, companyID, id string) (leave.LeaveResponse, error)
 	updateFn  func(ctx context.Context, companyID, actorID, id string, req leave.UpdateLeaveRequest) (leave.LeaveResponse, error)
 	submitFn  func(ctx context.Context, companyID, actorID, id string) (leave.LeaveResponse, error)
@@ -50,8 +50,8 @@ type fakeLeaveService struct {
 func (f *fakeLeaveService) Create(ctx context.Context, companyID, actorID string, req leave.CreateLeaveRequest) (leave.LeaveResponse, error) {
 	return f.createFn(ctx, companyID, actorID, req)
 }
-func (f *fakeLeaveService) GetAll(ctx context.Context, companyID string) ([]leave.LeaveResponse, error) {
-	return f.getAllFn(ctx, companyID)
+func (f *fakeLeaveService) GetAll(ctx context.Context, companyID, actorID string, canReadAll bool) ([]leave.LeaveResponse, error) {
+	return f.getAllFn(ctx, companyID, actorID, canReadAll)
 }
 func (f *fakeLeaveService) GetByID(ctx context.Context, companyID, id string) (leave.LeaveResponse, error) {
 	return f.getByIDFn(ctx, companyID, id)
@@ -191,9 +191,12 @@ func TestLeaveHandler_Create(t *testing.T) {
 func TestLeaveHandler_GetAll(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		companyID := uuid.New().String()
+		actorID := uuid.New().String()
 		svc := &fakeLeaveService{
-			getAllFn: func(ctx context.Context, cid string) ([]leave.LeaveResponse, error) {
+			getAllFn: func(ctx context.Context, cid, aid string, canReadAll bool) ([]leave.LeaveResponse, error) {
 				assert.Equal(t, companyID, cid)
+				assert.Equal(t, actorID, aid)
+				assert.False(t, canReadAll)
 				return []leave.LeaveResponse{
 					{ID: uuid.New().String(), CompanyID: cid, LeaveType: "SICK", Status: leave.StatusPending},
 				}, nil
@@ -205,6 +208,9 @@ func TestLeaveHandler_GetAll(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/leaves", nil)
 		c.Set("company_id", companyID)
+		c.Set("employee_id", actorID)
+		c.Set("role", "EMPLOYEE")
+		c.Set("has_read_all", true)
 
 		h.GetAll(c)
 
@@ -221,7 +227,7 @@ func TestLeaveHandler_GetAll(t *testing.T) {
 
 	t.Run("negative service error", func(t *testing.T) {
 		svc := &fakeLeaveService{
-			getAllFn: func(ctx context.Context, cid string) ([]leave.LeaveResponse, error) {
+			getAllFn: func(ctx context.Context, cid, aid string, canReadAll bool) ([]leave.LeaveResponse, error) {
 				return nil, errors.New("db error")
 			},
 		}
@@ -230,6 +236,8 @@ func TestLeaveHandler_GetAll(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/leaves", nil)
 		c.Set("company_id", uuid.New().String())
+		c.Set("employee_id", uuid.New().String())
+		c.Set("role", "EMPLOYEE")
 
 		h.GetAll(c)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"go-hris/internal/shared/apperror"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,7 +20,7 @@ const (
 type Service interface {
 	ClockIn(ctx context.Context, companyID, employeeID string, req ClockInRequest) (AttendanceResponse, error)
 	ClockOut(ctx context.Context, companyID, employeeID string, req ClockOutRequest) (AttendanceResponse, error)
-	GetAll(ctx context.Context, companyID string) ([]AttendanceResponse, error)
+	GetAll(ctx context.Context, companyID, actorID string, canReadAll bool) ([]AttendanceResponse, error)
 }
 
 type service struct {
@@ -124,8 +125,19 @@ func (s *service) ClockOut(ctx context.Context, companyID, employeeID string, re
 	return mapToResponse(*row), nil
 }
 
-func (s *service) GetAll(ctx context.Context, companyID string) ([]AttendanceResponse, error) {
-	rows, err := s.repo.FindAllByCompany(ctx, companyID)
+func (s *service) GetAll(ctx context.Context, companyID, actorID string, canReadAll bool) ([]AttendanceResponse, error) {
+	var (
+		rows []Attendance
+		err  error
+	)
+	if canReadAll {
+		rows, err = s.repo.FindAllByCompany(ctx, companyID)
+	} else {
+		if _, parseErr := uuid.Parse(actorID); parseErr != nil {
+			return nil, apperror.New(apperror.CodeInvalidInput, "invalid actor id", 400)
+		}
+		rows, err = s.repo.FindAllByCompanyAndEmployee(ctx, companyID, actorID)
+	}
 	if err != nil {
 		return nil, err
 	}

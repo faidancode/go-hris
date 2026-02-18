@@ -23,7 +23,7 @@ const (
 //go:generate mockgen -source=leave_service.go -destination=mock/leave_service_mock.go -package=mock
 type Service interface {
 	Create(ctx context.Context, companyID, actorID string, req CreateLeaveRequest) (LeaveResponse, error)
-	GetAll(ctx context.Context, companyID string) ([]LeaveResponse, error)
+	GetAll(ctx context.Context, companyID, actorID string, canReadAll bool) ([]LeaveResponse, error)
 	GetByID(ctx context.Context, companyID, id string) (LeaveResponse, error)
 	Update(ctx context.Context, companyID, actorID, id string, req UpdateLeaveRequest) (LeaveResponse, error)
 	Submit(ctx context.Context, companyID, actorID, id string) (LeaveResponse, error)
@@ -126,8 +126,19 @@ func (s *service) Create(ctx context.Context, companyID, actorID string, req Cre
 	return mapToResponse(*l), nil
 }
 
-func (s *service) GetAll(ctx context.Context, companyID string) ([]LeaveResponse, error) {
-	leaves, err := s.repo.FindAllByCompany(ctx, companyID)
+func (s *service) GetAll(ctx context.Context, companyID, actorID string, canReadAll bool) ([]LeaveResponse, error) {
+	var (
+		leaves []Leave
+		err    error
+	)
+	if canReadAll {
+		leaves, err = s.repo.FindAllByCompany(ctx, companyID)
+	} else {
+		if _, parseErr := uuid.Parse(actorID); parseErr != nil {
+			return nil, leaveerrors.ErrInvalidActorID
+		}
+		leaves, err = s.repo.FindAllByCompanyAndEmployee(ctx, companyID, actorID)
+	}
 	if err != nil {
 		return nil, err
 	}

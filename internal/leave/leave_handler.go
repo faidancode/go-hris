@@ -5,6 +5,7 @@ import (
 	"go-hris/internal/shared/response"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -67,8 +68,12 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) GetAll(c *gin.Context) {
 	ctx := c.Request.Context()
 	companyID := c.GetString("company_id")
+	actorID := getActorID(c)
+	role := strings.ToUpper(strings.TrimSpace(c.GetString("role")))
+	hasReadAll := c.GetBool("has_read_all")
+	canReadAll := hasReadAll && isPrivilegedRole(role)
 
-	resp, err := h.service.GetAll(ctx, companyID)
+	resp, err := h.service.GetAll(ctx, companyID, actorID, canReadAll)
 	if err != nil {
 		h.writeServiceError(c, err)
 		return
@@ -95,6 +100,15 @@ func (h *Handler) GetAll(c *gin.Context) {
 
 	meta := response.NewPaginationMeta(total, page, pageSize)
 	response.Success(c, http.StatusOK, resp[start:end], &meta)
+}
+
+func isPrivilegedRole(role string) bool {
+	switch role {
+	case "SUPER_ADMIN", "ADMIN", "HR", "MANAGER":
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *Handler) GetById(c *gin.Context) {

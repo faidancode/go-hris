@@ -14,6 +14,7 @@ type Repository interface {
 	WithTx(tx *sql.Tx) Repository
 	Create(ctx context.Context, l *Leave) error
 	FindAllByCompany(ctx context.Context, companyID string) ([]Leave, error)
+	FindAllByCompanyAndEmployee(ctx context.Context, companyID, employeeID string) ([]Leave, error)
 	FindByIDAndCompany(ctx context.Context, companyID, id string) (*Leave, error)
 	Update(ctx context.Context, l *Leave) error
 	Delete(ctx context.Context, companyID, id string) error
@@ -43,6 +44,17 @@ func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]
 	err := r.db.WithContext(ctx).
 		Preload("Employee").
 		Scopes(tenant.Scope(companyID)).
+		Order("start_date DESC").
+		Find(&leaves).Error
+	return leaves, err
+}
+
+func (r *repository) FindAllByCompanyAndEmployee(ctx context.Context, companyID, employeeID string) ([]Leave, error) {
+	var leaves []Leave
+	err := r.db.WithContext(ctx).
+		Preload("Employee").
+		Scopes(tenant.Scope(companyID)).
+		Where("employee_id = ?", employeeID).
 		Order("start_date DESC").
 		Find(&leaves).Error
 	return leaves, err

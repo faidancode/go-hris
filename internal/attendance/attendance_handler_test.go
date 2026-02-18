@@ -17,7 +17,7 @@ import (
 type fakeService struct {
 	clockInFn  func(ctx context.Context, companyID, employeeID string, req attendance.ClockInRequest) (attendance.AttendanceResponse, error)
 	clockOutFn func(ctx context.Context, companyID, employeeID string, req attendance.ClockOutRequest) (attendance.AttendanceResponse, error)
-	getAllFn   func(ctx context.Context, companyID string) ([]attendance.AttendanceResponse, error)
+	getAllFn   func(ctx context.Context, companyID, actorID string, canReadAll bool) ([]attendance.AttendanceResponse, error)
 }
 
 func (f *fakeService) ClockIn(ctx context.Context, companyID, employeeID string, req attendance.ClockInRequest) (attendance.AttendanceResponse, error) {
@@ -26,8 +26,8 @@ func (f *fakeService) ClockIn(ctx context.Context, companyID, employeeID string,
 func (f *fakeService) ClockOut(ctx context.Context, companyID, employeeID string, req attendance.ClockOutRequest) (attendance.AttendanceResponse, error) {
 	return f.clockOutFn(ctx, companyID, employeeID, req)
 }
-func (f *fakeService) GetAll(ctx context.Context, companyID string) ([]attendance.AttendanceResponse, error) {
-	return f.getAllFn(ctx, companyID)
+func (f *fakeService) GetAll(ctx context.Context, companyID, actorID string, canReadAll bool) ([]attendance.AttendanceResponse, error) {
+	return f.getAllFn(ctx, companyID, actorID, canReadAll)
 }
 
 func TestHandler_ClockInAndGetAll(t *testing.T) {
@@ -41,7 +41,9 @@ func TestHandler_ClockInAndGetAll(t *testing.T) {
 			assert.Equal(t, employeeID, eid)
 			return attendance.AttendanceResponse{ID: uuid.New().String(), EmployeeID: eid, CompanyID: cid}, nil
 		},
-		getAllFn: func(ctx context.Context, cid string) ([]attendance.AttendanceResponse, error) {
+		getAllFn: func(ctx context.Context, cid, actorID string, canReadAll bool) ([]attendance.AttendanceResponse, error) {
+			assert.Equal(t, employeeID, actorID)
+			assert.False(t, canReadAll)
 			return []attendance.AttendanceResponse{{ID: uuid.New().String()}, {ID: uuid.New().String()}}, nil
 		},
 		clockOutFn: func(ctx context.Context, companyID, employeeID string, req attendance.ClockOutRequest) (attendance.AttendanceResponse, error) {
@@ -63,6 +65,9 @@ func TestHandler_ClockInAndGetAll(t *testing.T) {
 	w2 := httptest.NewRecorder()
 	c2, _ := gin.CreateTestContext(w2)
 	c2.Set("company_id", companyID)
+	c2.Set("employee_id", employeeID)
+	c2.Set("role", "EMPLOYEE")
+	c2.Set("has_read_all", true)
 	c2.Request = httptest.NewRequest(http.MethodGet, "/attendances?page=1&page_size=1", nil)
 	h.GetAll(c2)
 	assert.Equal(t, http.StatusOK, w2.Code)
