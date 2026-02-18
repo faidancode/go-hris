@@ -8,7 +8,7 @@ main
 *.dylib
 
 .gocache
-docs/
+
 
 # Dependency / Vendor
 vendor/

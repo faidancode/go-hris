@@ -57,7 +57,7 @@ func TestEmployeeService_Create(t *testing.T) {
 	companyID := uuid.New().String()
 
 	t.Run("success", func(t *testing.T) {
-		req := employee.CreateEmployeeRequest{FullName: "HR", Email: "hr@example.com", PositionID: uuid.New().String()}
+		req := employee.CreateEmployeeRequest{FullName: "HR", Email: "hr@example.com", EmployeeNumber: "EMP-100", Phone: "0812", HireDate: "2026-01-01", EmploymentStatus: "active", PositionID: uuid.New().String()}
 		deptID := uuid.New()
 		departmentID := uuid.New().String()
 
@@ -89,7 +89,7 @@ func TestEmployeeService_Create(t *testing.T) {
 	})
 
 	t.Run("repo error -> rollback", func(t *testing.T) {
-		req := employee.CreateEmployeeRequest{FullName: "HR", Email: "hr@example.com", PositionID: uuid.New().String()}
+		req := employee.CreateEmployeeRequest{FullName: "HR", Email: "hr@example.com", EmployeeNumber: "EMP-101", Phone: "0813", HireDate: "2026-01-02", EmploymentStatus: "active", PositionID: uuid.New().String()}
 		departmentID := uuid.New().String()
 
 		expectTx(t, deps.sqlMock, false) // rollback
@@ -164,7 +164,7 @@ func TestEmployeeService_Update(t *testing.T) {
 	companyID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
-		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", PositionID: uuid.New().String()}
+		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", EmployeeNumber: "EMP-102", Phone: "0814", HireDate: "2026-01-03", EmploymentStatus: "active", PositionID: uuid.New().String()}
 		departmentID := uuid.New().String()
 
 		// Mock DB Transaction
@@ -206,7 +206,7 @@ func TestEmployeeService_Update(t *testing.T) {
 	})
 
 	t.Run("error - employee not found", func(t *testing.T) {
-		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", PositionID: uuid.New().String()}
+		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", EmployeeNumber: "EMP-103", Phone: "0815", HireDate: "2026-01-04", EmploymentStatus: "active", PositionID: uuid.New().String()}
 		departmentID := uuid.New().String()
 
 		deps.sqlMock.ExpectBegin()
@@ -230,7 +230,7 @@ func TestEmployeeService_Update(t *testing.T) {
 	})
 
 	t.Run("error - update failed", func(t *testing.T) {
-		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", PositionID: uuid.New().String()}
+		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", EmployeeNumber: "EMP-104", Phone: "0816", HireDate: "2026-01-05", EmploymentStatus: "active", PositionID: uuid.New().String()}
 		departmentID := uuid.New().String()
 
 		deps.sqlMock.ExpectBegin()

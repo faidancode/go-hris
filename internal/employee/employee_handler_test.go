@@ -86,7 +86,7 @@ func TestEmployeeHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 
 		// 3. Setup Request Body
-		body := `{"name":"John Doe", "email":"john@example.com","position_id":"` + uuid.New().String() + `"}`
+		body := `{"full_name":"John Doe","email":"john@example.com","employee_number":"EMP-900","phone":"0812","hire_date":"2026-01-01","employment_status":"active","position_id":"` + uuid.New().String() + `"}`
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/employees", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		c.Request = req
@@ -142,7 +142,7 @@ func TestEmployeeHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 
 		// 3. Setup Request Body & Context Values
-		body := `{"name":"HR", "email":"hr@company.com","position_id":"` + uuid.New().String() + `"}`
+		body := `{"full_name":"HR","email":"hr@company.com","employee_number":"EMP-901","phone":"0813","hire_date":"2026-01-02","employment_status":"active","position_id":"` + uuid.New().String() + `"}`
 		req := httptest.NewRequest(http.MethodPost, "/employees", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
@@ -174,8 +174,8 @@ func TestEmployeeHandler_GetAll(t *testing.T) {
 			GetAllFn: func(ctx context.Context, cid string) ([]employee.EmployeeResponse, error) {
 				assert.Equal(t, companyID, cid)
 				return []employee.EmployeeResponse{
-					{ID: uuid.New().String(), FullName: "John Doe"},
-					{ID: uuid.New().String(), FullName: "Jane Doe"},
+					{ID: uuid.New().String(), FullName: "John Doe", Email: "john@example.com"},
+					{ID: uuid.New().String(), FullName: "Jane Doe", Email: "jane@example.com"},
 				}, nil
 			},
 		}
@@ -327,7 +327,7 @@ func TestEmployeeHandler_Update(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 
 		// PERBAIKAN: Tambahkan field 'email' agar lolos validasi binding:"required"
-		body := `{"name":"Finance Update", "email":"finance@company.com","position_id":"` + uuid.New().String() + `"}`
+		body := `{"full_name":"Finance Update","email":"finance@company.com","employee_number":"EMP-902","phone":"0814","hire_date":"2026-01-03","employment_status":"active","position_id":"` + uuid.New().String() + `"}`
 		req := httptest.NewRequest(http.MethodPut, "/employees/"+employeeID, strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		c.Request = req
@@ -373,7 +373,7 @@ func TestEmployeeHandler_Update(t *testing.T) {
 
 		// PERBAIKAN: Payload harus VALID (lengkap) agar lolos validasi Gin (400)
 		// dan bisa masuk ke logika Service (500)
-		body := `{"name":"Finance", "email":"finance@company.com","position_id":"` + uuid.New().String() + `"}`
+		body := `{"full_name":"Finance","email":"finance@company.com","employee_number":"EMP-903","phone":"0815","hire_date":"2026-01-04","employment_status":"active","position_id":"` + uuid.New().String() + `"}`
 		req := httptest.NewRequest(http.MethodPut, "/employees/123", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 

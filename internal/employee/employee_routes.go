@@ -18,5 +18,7 @@ func RegisterRoutes(
 		employees.GET("", middleware.RBACAuthorize(rbacService, "employee", "read"), handler.GetAll)
 		employees.GET("/:id", middleware.RBACAuthorize(rbacService, "employee", "read"), handler.GetById)
 		employees.POST("", middleware.RBACAuthorize(rbacService, "employee", "create"), handler.Create)
+		employees.PUT("/:id", middleware.RBACAuthorize(rbacService, "employee", "create"), handler.Update)
+		employees.DELETE("/:id", middleware.RBACAuthorize(rbacService, "employee", "delete"), handler.Delete)
 	}
 }

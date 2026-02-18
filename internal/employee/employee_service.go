@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -46,6 +47,10 @@ func (s *service) Create(
 	if departmentID == "" {
 		return EmployeeResponse{}, errors.New("position not found for this company")
 	}
+	hireDate, err := time.Parse("2006-01-02", req.HireDate)
+	if err != nil {
+		return EmployeeResponse{}, errors.New("invalid hire_date format, expected YYYY-MM-DD")
+	}
 
 	dept := &Employee{
 		ID:           uuid.New(),
@@ -54,6 +59,10 @@ func (s *service) Create(
 		CompanyID:    uuid.MustParse(companyID),
 		PositionID:   uuidPtr(req.PositionID),
 		DepartmentID: uuidPtr(departmentID),
+		EmployeeNumber: req.EmployeeNumber,
+		Phone: req.Phone,
+		HireDate: hireDate,
+		EmploymentStatus: req.EmploymentStatus,
 	}
 
 	if err := qtx.Create(ctx, dept); err != nil {
@@ -113,6 +122,10 @@ func (s *service) Update(
 	if departmentID == "" {
 		return EmployeeResponse{}, errors.New("position not found for this company")
 	}
+	hireDate, err := time.Parse("2006-01-02", req.HireDate)
+	if err != nil {
+		return EmployeeResponse{}, errors.New("invalid hire_date format, expected YYYY-MM-DD")
+	}
 
 	dept, err := qtx.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
@@ -123,6 +136,10 @@ func (s *service) Update(
 	dept.Email = req.Email
 	dept.PositionID = uuidPtr(req.PositionID)
 	dept.DepartmentID = uuidPtr(departmentID)
+	dept.EmployeeNumber = req.EmployeeNumber
+	dept.Phone = req.Phone
+	dept.HireDate = hireDate
+	dept.EmploymentStatus = req.EmploymentStatus
 
 	if err := qtx.Update(ctx, dept); err != nil {
 		return EmployeeResponse{}, err
@@ -160,6 +177,10 @@ func mapToResponse(dept Employee) EmployeeResponse {
 		ID:           dept.ID.String(),
 		FullName:     dept.FullName,
 		Email:        dept.Email,
+		EmployeeNumber: dept.EmployeeNumber,
+		Phone: dept.Phone,
+		HireDate: dept.HireDate.Format("2006-01-02"),
+		EmploymentStatus: dept.EmploymentStatus,
 		CompanyID:    dept.CompanyID.String(),
 		DepartmentID: uuidToString(dept.DepartmentID),
 		PositionID:   uuidToString(dept.PositionID),
