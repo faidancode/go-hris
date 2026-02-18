@@ -2,6 +2,7 @@ package app
 
 import (
 	"database/sql"
+	"go-hris/internal/attendance"
 	"go-hris/internal/auth"
 	"go-hris/internal/department"
 	"go-hris/internal/employee"
@@ -21,6 +22,7 @@ import (
 func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis.Client) error {
 	// --- Repositories ---
 	rbacRepo := rbac.NewRepository(gormDB)
+	attendanceRepo := attendance.NewRepository(gormDB)
 	authRepo := auth.NewRepository(gormDB)
 	departmentRepo := department.NewRepository(gormDB)
 	employeeRepo := employee.NewRepository(gormDB)
@@ -38,6 +40,7 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 
 	// --- Services ---
 	authService := auth.NewService(authRepo, rbacService, employeeRepo)
+	attendanceService := attendance.NewService(db, attendanceRepo)
 	departmentService := department.NewService(db, departmentRepo)
 	employeeService := employee.NewService(db, employeeRepo)
 	employeeSalaryService := employeesalary.NewService(db, employeeSalaryRepo)
@@ -47,6 +50,7 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 
 	// --- Handlers ---
 	authHandler := auth.NewHandler(authService)
+	attendanceHandler := attendance.NewHandler(attendanceService)
 	departmentHandler := department.NewHandler(departmentService)
 	employeeHandler := employee.NewHandler(employeeService)
 	employeeSalaryHandler := employeesalary.NewHandler(employeeSalaryService)
@@ -59,6 +63,7 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 	api := router.Group("/api/v1")
 	{
 		auth.RegisterRoutes(api, authHandler)
+		attendance.RegisterRoutes(api, attendanceHandler, rbacService)
 		department.RegisterRoutes(api, departmentHandler, rbacService)
 		employee.RegisterRoutes(api, employeeHandler, rbacService)
 		employeesalary.RegisterRoutes(api, employeeSalaryHandler, rbacService)
