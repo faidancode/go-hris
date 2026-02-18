@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log"
 	"os"
 	"time"
 
 	"go-hris/internal/app"
 	"go-hris/internal/bootstrap"
+	"go-hris/internal/shared/apperror"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -17,17 +17,17 @@ func main() {
 	_ = godotenv.Load()
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 	defer logger.Sync()
 	zap.ReplaceGlobals(logger)
 
-	// apperror.Init() initialize custom error handling (if needed)
+	apperror.Init()
 	r := gin.Default()
 
 	// build dependency + routes
 	if err := app.BuildApp(r); err != nil {
-		log.Fatal(err)
+		logger.Fatal("build app failed", zap.Error(err))
 	}
 
 	auditLogger := bootstrap.NewStdoutAuditLogger()

@@ -15,6 +15,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type apiError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type apiEnvelope struct {
+	Ok    bool            `json:"ok"`
+	Data  json.RawMessage `json:"data"`
+	Error *apiError       `json:"error"`
+}
+
+func mustDecodeEnvelope(t *testing.T, body []byte) apiEnvelope {
+	t.Helper()
+	var env apiEnvelope
+	err := json.Unmarshal(body, &env)
+	assert.NoError(t, err)
+	return env
+}
+
 type fakePositionService struct {
 	CreateFn  func(ctx context.Context, companyID string, req position.CreatePositionRequest) (position.PositionResponse, error)
 	GetAllFn  func(ctx context.Context, companyID string) ([]position.PositionResponse, error)
@@ -76,8 +95,10 @@ func TestPositionHandler_Create(t *testing.T) {
 		h.Create(c)
 
 		assert.Equal(t, http.StatusCreated, w.Code)
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.True(t, env.Ok)
 		var got position.PositionResponse
-		err := json.Unmarshal(w.Body.Bytes(), &got)
+		err := json.Unmarshal(env.Data, &got)
 		assert.NoError(t, err)
 		assert.Equal(t, companyID, got.CompanyID)
 		assert.Equal(t, departmentID, got.DepartmentID)
@@ -117,7 +138,12 @@ func TestPositionHandler_Create(t *testing.T) {
 		h.Create(c)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "failed")
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.False(t, env.Ok)
+		if assert.NotNil(t, env.Error) {
+			assert.Equal(t, "INTERNAL_ERROR", env.Error.Code)
+			assert.Equal(t, "Internal server error", env.Error.Message)
+		}
 	})
 }
 
@@ -143,8 +169,10 @@ func TestPositionHandler_GetAll(t *testing.T) {
 		h.GetAll(c)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.True(t, env.Ok)
 		var got []position.PositionResponse
-		err := json.Unmarshal(w.Body.Bytes(), &got)
+		err := json.Unmarshal(env.Data, &got)
 		assert.NoError(t, err)
 		assert.Len(t, got, 1)
 		assert.Equal(t, companyID, got[0].CompanyID)
@@ -178,8 +206,10 @@ func TestPositionHandler_GetByID(t *testing.T) {
 		h.GetById(c)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.True(t, env.Ok)
 		var got position.PositionResponse
-		err := json.Unmarshal(w.Body.Bytes(), &got)
+		err := json.Unmarshal(env.Data, &got)
 		assert.NoError(t, err)
 		assert.Equal(t, deptID, got.ID)
 		assert.Equal(t, companyID, got.CompanyID)
@@ -214,8 +244,10 @@ func TestPositionHandler_Update(t *testing.T) {
 		h.Update(c)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.True(t, env.Ok)
 		var got position.PositionResponse
-		err := json.Unmarshal(w.Body.Bytes(), &got)
+		err := json.Unmarshal(env.Data, &got)
 		assert.NoError(t, err)
 		assert.Equal(t, deptID, got.ID)
 		assert.Equal(t, "Finance", got.Name)

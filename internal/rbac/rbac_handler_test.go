@@ -11,6 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type apiEnvelope struct {
+	Ok   bool            `json:"ok"`
+	Data json.RawMessage `json:"data"`
+}
+
 // =========================================
 // Mock Service
 // =========================================
@@ -62,8 +67,13 @@ func TestHandler_Enforce(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 
+	var env apiEnvelope
+	err := json.Unmarshal(w.Body.Bytes(), &env)
+	assert.NoError(t, err)
+	assert.True(t, env.Ok)
+
 	var resp EnforceResponse
-	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	err = json.Unmarshal(env.Data, &resp)
 	assert.NoError(t, err)
 
 	assert.True(t, resp.Allowed)

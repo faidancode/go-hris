@@ -16,6 +16,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type apiError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type apiEnvelope struct {
+	Ok    bool            `json:"ok"`
+	Data  json.RawMessage `json:"data"`
+	Error *apiError       `json:"error"`
+}
+
+func mustDecodeEnvelope(t *testing.T, body []byte) apiEnvelope {
+	t.Helper()
+	var env apiEnvelope
+	err := json.Unmarshal(body, &env)
+	assert.NoError(t, err)
+	return env
+}
+
 type fakePayrollService struct {
 	createFn  func(ctx context.Context, companyID, actorID string, req payroll.CreatePayrollRequest) (payroll.PayrollResponse, error)
 	getAllFn  func(ctx context.Context, companyID string) ([]payroll.PayrollResponse, error)
@@ -82,8 +101,10 @@ func TestPayrollHandler_Create(t *testing.T) {
 		h.Create(c)
 
 		assert.Equal(t, http.StatusCreated, w.Code)
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.True(t, env.Ok)
 		var got payroll.PayrollResponse
-		err := json.Unmarshal(w.Body.Bytes(), &got)
+		err := json.Unmarshal(env.Data, &got)
 		assert.NoError(t, err)
 		assert.Equal(t, companyID, got.CompanyID)
 		assert.Equal(t, employeeID, got.EmployeeID)
@@ -125,7 +146,12 @@ func TestPayrollHandler_Create(t *testing.T) {
 		h.Create(c)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "create failed")
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.False(t, env.Ok)
+		if assert.NotNil(t, env.Error) {
+			assert.Equal(t, "INTERNAL_ERROR", env.Error.Code)
+			assert.Equal(t, "Internal server error", env.Error.Message)
+		}
 	})
 }
 
@@ -152,8 +178,10 @@ func TestPayrollHandler_GetAll(t *testing.T) {
 		h.GetAll(c)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.True(t, env.Ok)
 		var got []payroll.PayrollResponse
-		err := json.Unmarshal(w.Body.Bytes(), &got)
+		err := json.Unmarshal(env.Data, &got)
 		assert.NoError(t, err)
 		assert.Len(t, got, 1)
 		assert.Equal(t, payroll.StatusDraft, got[0].Status)
@@ -176,7 +204,12 @@ func TestPayrollHandler_GetAll(t *testing.T) {
 		h.GetAll(c)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "db error")
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.False(t, env.Ok)
+		if assert.NotNil(t, env.Error) {
+			assert.Equal(t, "INTERNAL_ERROR", env.Error.Code)
+			assert.Equal(t, "Internal server error", env.Error.Message)
+		}
 	})
 }
 
@@ -204,8 +237,10 @@ func TestPayrollHandler_GetByID(t *testing.T) {
 		h.GetById(c)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.True(t, env.Ok)
 		var got payroll.PayrollResponse
-		err := json.Unmarshal(w.Body.Bytes(), &got)
+		err := json.Unmarshal(env.Data, &got)
 		assert.NoError(t, err)
 		assert.Equal(t, payrollID, got.ID)
 		assert.Equal(t, companyID, got.CompanyID)
@@ -229,7 +264,12 @@ func TestPayrollHandler_GetByID(t *testing.T) {
 		h.GetById(c)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "not found")
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.False(t, env.Ok)
+		if assert.NotNil(t, env.Error) {
+			assert.Equal(t, "INTERNAL_ERROR", env.Error.Code)
+			assert.Equal(t, "Internal server error", env.Error.Message)
+		}
 	})
 }
 
@@ -270,8 +310,10 @@ func TestPayrollHandler_Update(t *testing.T) {
 		h.Update(c)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.True(t, env.Ok)
 		var got payroll.PayrollResponse
-		err := json.Unmarshal(w.Body.Bytes(), &got)
+		err := json.Unmarshal(env.Data, &got)
 		assert.NoError(t, err)
 		assert.Equal(t, targetID, got.ID)
 		assert.Equal(t, companyID, got.CompanyID)
@@ -315,7 +357,12 @@ func TestPayrollHandler_Update(t *testing.T) {
 		h.Update(c)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "update failed")
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.False(t, env.Ok)
+		if assert.NotNil(t, env.Error) {
+			assert.Equal(t, "INTERNAL_ERROR", env.Error.Code)
+			assert.Equal(t, "Internal server error", env.Error.Message)
+		}
 	})
 }
 
@@ -367,6 +414,11 @@ func TestPayrollHandler_Delete(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "delete failed")
+		env := mustDecodeEnvelope(t, w.Body.Bytes())
+		assert.False(t, env.Ok)
+		if assert.NotNil(t, env.Error) {
+			assert.Equal(t, "INTERNAL_ERROR", env.Error.Code)
+			assert.Equal(t, "Internal server error", env.Error.Message)
+		}
 	})
 }

@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type ServerConfig struct {
@@ -34,9 +34,9 @@ func StartHTTPServer(
 	}
 
 	go func() {
-		log.Println("🚀 HTTP server running on port", cfg.Port)
+		zap.L().Info("HTTP server running", zap.String("port", cfg.Port))
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("ListenAndServe error:", err)
+			zap.L().Fatal("ListenAndServe error", zap.Error(err))
 		}
 	}()
 
@@ -44,7 +44,7 @@ func StartHTTPServer(
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
 
-	log.Println("🛑 Shutdown signal received:", sig.String())
+	zap.L().Info("Shutdown signal received", zap.String("signal", sig.String()))
 
 	// Audit log BEFORE shutdown
 	auditLogger.Log(context.Background(), AuditLog{
@@ -59,8 +59,8 @@ func StartHTTPServer(
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Println("❌ Forced shutdown:", err)
+		zap.L().Error("Forced shutdown", zap.Error(err))
 	} else {
-		log.Println("✅ Server exited gracefully")
+		zap.L().Info("Server exited gracefully")
 	}
 }

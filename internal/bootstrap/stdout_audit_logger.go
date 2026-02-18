@@ -2,9 +2,9 @@ package bootstrap
 
 import (
 	"context"
-	"encoding/json"
-	"log"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type StdoutAuditLogger struct{}
@@ -14,13 +14,10 @@ func NewStdoutAuditLogger() *StdoutAuditLogger {
 }
 
 func (l *StdoutAuditLogger) Log(ctx context.Context, entry AuditLog) {
-	payload := map[string]any{
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
-		"action":    entry.Action,
-		"message":   entry.Message,
-		"meta":      entry.Meta,
-	}
-
-	b, _ := json.Marshal(payload)
-	log.Println("[AUDIT]", string(b))
+	zap.L().Named("audit").Info("audit event",
+		zap.String("timestamp", time.Now().UTC().Format(time.RFC3339)),
+		zap.String("action", entry.Action),
+		zap.String("message", entry.Message),
+		zap.Any("meta", entry.Meta),
+	)
 }

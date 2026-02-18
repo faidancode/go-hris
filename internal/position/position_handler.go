@@ -118,5 +118,5 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, gin.H{"deleted": true}, nil)
+	c.Status(http.StatusNoContent)
 }
