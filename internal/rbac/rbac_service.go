@@ -1,8 +1,11 @@
 package rbac
 
-import "github.com/casbin/casbin/v2"
-import "sync"
-import "log"
+import (
+	"log"
+	"sync"
+
+	"github.com/casbin/casbin/v2"
+)
 
 //go:generate mockgen -source=rbac_service.go -destination=mock/rbac_service_mock.go -package=mock
 type Service interface {
@@ -81,9 +84,7 @@ func (s *service) Enforce(req EnforceRequest) (bool, error) {
 		return false, err
 	}
 
-	roles := s.enforcer.GetRolesForUserInDomain(req.EmployeeID, req.CompanyID)
-
-	perms, permErr := s.enforcer.GetImplicitPermissionsForUser(req.EmployeeID, req.CompanyID)
+	_, permErr := s.enforcer.GetImplicitPermissionsForUser(req.EmployeeID, req.CompanyID)
 	if permErr != nil {
 		log.Printf("rbac enforce debug: failed_get_permissions employee_id=%s company_id=%s err=%v", req.EmployeeID, req.CompanyID, permErr)
 	}
@@ -95,12 +96,8 @@ func (s *service) Enforce(req EnforceRequest) (bool, error) {
 		req.Action,
 	)
 	if err != nil {
-		log.Printf("rbac enforce result: employee_id=%s company_id=%s resource=%s action=%s err=%v", req.EmployeeID, req.CompanyID, req.Resource, req.Action, err)
 		return false, err
 	}
-
-	log.Printf("rbac enforce result: employee_id=%s company_id=%s resource=%s action=%s allowed=%t roles=%v permissions=%v",
-		req.EmployeeID, req.CompanyID, req.Resource, req.Action, allowed, roles, perms)
 
 	return allowed, nil
 }

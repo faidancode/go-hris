@@ -3,6 +3,7 @@ package leave
 import (
 	"context"
 	"database/sql"
+	"go-hris/internal/tenant"
 	"time"
 
 	"gorm.io/gorm"
@@ -41,7 +42,7 @@ func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]
 	var leaves []Leave
 	err := r.db.WithContext(ctx).
 		Preload("Employee").
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Order("start_date DESC").
 		Find(&leaves).Error
 	return leaves, err
@@ -51,18 +52,19 @@ func (r *repository) FindByIDAndCompany(ctx context.Context, companyID, id strin
 	var l Leave
 	err := r.db.WithContext(ctx).
 		Preload("Employee").
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		First(&l, "id = ?", id).Error
 	return &l, err
 }
 
 func (r *repository) Update(ctx context.Context, l *Leave) error {
-	return r.db.WithContext(ctx).Save(l).Error
+	// Avoid persisting preloaded Employee association on update.
+	return r.db.WithContext(ctx).Omit("Employee").Save(l).Error
 }
 
 func (r *repository) Delete(ctx context.Context, companyID, id string) error {
 	return r.db.WithContext(ctx).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Delete(&Leave{}, "id = ?", id).Error
 }
 
@@ -71,7 +73,7 @@ func (r *repository) EmployeeBelongsToCompany(ctx context.Context, companyID, em
 	err := r.db.WithContext(ctx).
 		Table("employees").
 		Where("id = ?", employeeID).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Where("deleted_at IS NULL").
 		Count(&count).Error
 	return count > 0, err
@@ -80,7 +82,7 @@ func (r *repository) EmployeeBelongsToCompany(ctx context.Context, companyID, em
 func (r *repository) HasOverlappingPeriod(ctx context.Context, companyID, employeeID string, startDate, endDate time.Time, excludeID *string) (bool, error) {
 	db := r.db.WithContext(ctx).
 		Model(&Leave{}).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Where("employee_id = ?", employeeID).
 		Where("status <> ?", "CANCELLED").
 		Where("NOT (end_date < ? OR start_date > ?)", startDate, endDate)

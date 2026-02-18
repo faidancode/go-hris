@@ -3,6 +3,7 @@ package payroll
 import (
 	"context"
 	"database/sql"
+	"go-hris/internal/tenant"
 	"time"
 
 	"gorm.io/gorm"
@@ -43,7 +44,7 @@ func (r *repository) Create(ctx context.Context, payroll *Payroll) error {
 func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Payroll, error) {
 	var payrolls []Payroll
 	err := r.db.WithContext(ctx).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Order("period_start DESC").
 		Find(&payrolls).Error
 	return payrolls, err
@@ -52,7 +53,7 @@ func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]
 func (r *repository) FindByIDAndCompany(ctx context.Context, companyID string, id string) (*Payroll, error) {
 	var payroll Payroll
 	err := r.db.WithContext(ctx).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		First(&payroll, "id = ?", id).Error
 	return &payroll, err
 }
@@ -63,7 +64,7 @@ func (r *repository) Update(ctx context.Context, payroll *Payroll) error {
 
 func (r *repository) Delete(ctx context.Context, companyID string, id string) error {
 	return r.db.WithContext(ctx).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Delete(&Payroll{}, "id = ?", id).Error
 }
 
@@ -72,7 +73,7 @@ func (r *repository) EmployeeBelongsToCompany(ctx context.Context, companyID str
 	err := r.db.WithContext(ctx).
 		Table("employees").
 		Where("id = ?", employeeID).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Where("deleted_at IS NULL").
 		Count(&count).Error
 	return count > 0, err
@@ -88,7 +89,7 @@ func (r *repository) HasOverlappingPeriod(
 ) (bool, error) {
 	db := r.db.WithContext(ctx).
 		Model(&Payroll{}).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Where("employee_id = ?", employeeID).
 		Where("NOT (period_end < ? OR period_start > ?)", periodStart, periodEnd)
 

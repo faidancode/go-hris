@@ -315,7 +315,12 @@ func TestLeaveService_Update(t *testing.T) {
 			return &leave.Leave{
 				ID:         uuid.MustParse(targetID),
 				CompanyID:  uuid.MustParse(cid),
-				EmployeeID: uuid.New(),
+				EmployeeID: uuid.MustParse(employeeID),
+				LeaveType:  "ANNUAL",
+				StartDate:  time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+				EndDate:    time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC),
+				Reason:     "Family trip",
+				Status:     leave.StatusSubmitted,
 				CreatedBy:  uuid.MustParse(actorID),
 			}, nil
 		}
@@ -362,9 +367,14 @@ func TestLeaveService_Update(t *testing.T) {
 
 		deps.repo.findByIDAndCompanyFn = func(ctx context.Context, cid, targetID string) (*leave.Leave, error) {
 			return &leave.Leave{
-				ID:        uuid.MustParse(targetID),
-				CompanyID: uuid.MustParse(cid),
-				CreatedBy: uuid.MustParse(actorID),
+				ID:         uuid.MustParse(targetID),
+				CompanyID:  uuid.MustParse(cid),
+				EmployeeID: uuid.MustParse(employeeID),
+				LeaveType:  "ANNUAL",
+				StartDate:  time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+				EndDate:    time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC),
+				Status:     leave.StatusSubmitted,
+				CreatedBy:  uuid.MustParse(actorID),
 			}, nil
 		}
 		deps.repo.employeeBelongsToCompany = func(ctx context.Context, cid, eid string) (bool, error) {
@@ -378,6 +388,131 @@ func TestLeaveService_Update(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "approved_by is required")
+		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
+	})
+
+	t.Run("negative invalid transition pending to approved", func(t *testing.T) {
+		deps := setupLeaveServiceTest(t)
+		defer deps.db.Close()
+
+		expectTx(t, deps.sqlMock, false)
+		approvedBy := uuid.New().String()
+		req := leave.UpdateLeaveRequest{
+			EmployeeID: employeeID,
+			LeaveType:  "ANNUAL",
+			StartDate:  "2026-06-01",
+			EndDate:    "2026-06-02",
+			Status:     leave.StatusApproved,
+			ApprovedBy: &approvedBy,
+		}
+
+		deps.repo.findByIDAndCompanyFn = func(ctx context.Context, cid, targetID string) (*leave.Leave, error) {
+			return &leave.Leave{
+				ID:        uuid.MustParse(targetID),
+				CompanyID: uuid.MustParse(cid),
+				Status:    leave.StatusPending,
+				CreatedBy: uuid.MustParse(actorID),
+			}, nil
+		}
+
+		_, err := deps.service.Update(ctx, companyID, actorID, id, req)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid leave status transition")
+		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
+	})
+
+	t.Run("success rejected flow", func(t *testing.T) {
+		deps := setupLeaveServiceTest(t)
+		defer deps.db.Close()
+
+		expectTx(t, deps.sqlMock, true)
+		rejectionReason := "insufficient leave balance"
+		req := leave.UpdateLeaveRequest{
+			EmployeeID:      employeeID,
+			LeaveType:       "ANNUAL",
+			StartDate:       "2026-06-01",
+			EndDate:         "2026-06-03",
+			Reason:          "Family trip",
+			Status:          leave.StatusRejected,
+			RejectionReason: &rejectionReason,
+		}
+
+		deps.repo.findByIDAndCompanyFn = func(ctx context.Context, cid, targetID string) (*leave.Leave, error) {
+			return &leave.Leave{
+				ID:         uuid.MustParse(targetID),
+				CompanyID:  uuid.MustParse(cid),
+				EmployeeID: uuid.MustParse(employeeID),
+				LeaveType:  "ANNUAL",
+				StartDate:  time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+				EndDate:    time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC),
+				Reason:     "Family trip",
+				Status:     leave.StatusSubmitted,
+				CreatedBy:  uuid.MustParse(actorID),
+			}, nil
+		}
+		deps.repo.employeeBelongsToCompany = func(ctx context.Context, cid, eid string) (bool, error) {
+			return true, nil
+		}
+		deps.repo.hasOverlappingPeriodFn = func(ctx context.Context, cid, eid string, startDate, endDate time.Time, excludeID *string) (bool, error) {
+			return false, nil
+		}
+		deps.repo.updateFn = func(ctx context.Context, l *leave.Leave) error {
+			assert.Equal(t, leave.StatusRejected, l.Status)
+			assert.NotNil(t, l.RejectionReason)
+			assert.Equal(t, rejectionReason, *l.RejectionReason)
+			assert.Nil(t, l.ApprovedBy)
+			assert.Nil(t, l.ApprovedAt)
+			return nil
+		}
+
+		resp, err := deps.service.Update(ctx, companyID, actorID, id, req)
+
+		assert.NoError(t, err)
+		assert.Equal(t, leave.StatusRejected, resp.Status)
+		assert.NotNil(t, resp.RejectionReason)
+		assert.Equal(t, rejectionReason, *resp.RejectionReason)
+		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
+	})
+
+	t.Run("negative rejected without reason", func(t *testing.T) {
+		deps := setupLeaveServiceTest(t)
+		defer deps.db.Close()
+
+		expectTx(t, deps.sqlMock, false)
+		req := leave.UpdateLeaveRequest{
+			EmployeeID: employeeID,
+			LeaveType:  "ANNUAL",
+			StartDate:  "2026-06-01",
+			EndDate:    "2026-06-03",
+			Reason:     "Family trip",
+			Status:     leave.StatusRejected,
+		}
+
+		deps.repo.findByIDAndCompanyFn = func(ctx context.Context, cid, targetID string) (*leave.Leave, error) {
+			return &leave.Leave{
+				ID:         uuid.MustParse(targetID),
+				CompanyID:  uuid.MustParse(cid),
+				EmployeeID: uuid.MustParse(employeeID),
+				LeaveType:  "ANNUAL",
+				StartDate:  time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+				EndDate:    time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC),
+				Reason:     "Family trip",
+				Status:     leave.StatusSubmitted,
+				CreatedBy:  uuid.MustParse(actorID),
+			}, nil
+		}
+		deps.repo.employeeBelongsToCompany = func(ctx context.Context, cid, eid string) (bool, error) {
+			return true, nil
+		}
+		deps.repo.hasOverlappingPeriodFn = func(ctx context.Context, cid, eid string, startDate, endDate time.Time, excludeID *string) (bool, error) {
+			return false, nil
+		}
+
+		_, err := deps.service.Update(ctx, companyID, actorID, id, req)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "rejection_reason is required")
 		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
 	})
 }
@@ -416,6 +551,100 @@ func TestLeaveService_Delete(t *testing.T) {
 		err := deps.service.Delete(ctx, companyID, id)
 
 		assert.Error(t, err)
+		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
+	})
+}
+
+func TestLeaveService_SubmitApproveReject(t *testing.T) {
+	ctx := context.Background()
+	companyID := uuid.New().String()
+	actorID := uuid.New().String()
+	id := uuid.New().String()
+
+	t.Run("submit success", func(t *testing.T) {
+		deps := setupLeaveServiceTest(t)
+		defer deps.db.Close()
+
+		expectTx(t, deps.sqlMock, true)
+		deps.repo.findByIDAndCompanyFn = func(ctx context.Context, cid, targetID string) (*leave.Leave, error) {
+			return &leave.Leave{
+				ID:        uuid.MustParse(targetID),
+				CompanyID: uuid.MustParse(cid),
+				Status:    leave.StatusPending,
+			}, nil
+		}
+		deps.repo.updateFn = func(ctx context.Context, l *leave.Leave) error {
+			assert.Equal(t, leave.StatusSubmitted, l.Status)
+			assert.Nil(t, l.ApprovedBy)
+			assert.Nil(t, l.RejectionReason)
+			return nil
+		}
+
+		resp, err := deps.service.Submit(ctx, companyID, actorID, id)
+
+		assert.NoError(t, err)
+		assert.Equal(t, leave.StatusSubmitted, resp.Status)
+		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
+	})
+
+	t.Run("approve success uses actor as approver", func(t *testing.T) {
+		deps := setupLeaveServiceTest(t)
+		defer deps.db.Close()
+
+		expectTx(t, deps.sqlMock, true)
+		deps.repo.findByIDAndCompanyFn = func(ctx context.Context, cid, targetID string) (*leave.Leave, error) {
+			return &leave.Leave{
+				ID:        uuid.MustParse(targetID),
+				CompanyID: uuid.MustParse(cid),
+				Status:    leave.StatusSubmitted,
+			}, nil
+		}
+		deps.repo.updateFn = func(ctx context.Context, l *leave.Leave) error {
+			assert.Equal(t, leave.StatusApproved, l.Status)
+			assert.NotNil(t, l.ApprovedBy)
+			assert.Equal(t, actorID, l.ApprovedBy.String())
+			assert.NotNil(t, l.ApprovedAt)
+			assert.Nil(t, l.RejectionReason)
+			return nil
+		}
+
+		resp, err := deps.service.Approve(ctx, companyID, actorID, id)
+
+		assert.NoError(t, err)
+		assert.Equal(t, leave.StatusApproved, resp.Status)
+		assert.NotNil(t, resp.ApprovedBy)
+		assert.Equal(t, actorID, *resp.ApprovedBy)
+		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
+	})
+
+	t.Run("reject success", func(t *testing.T) {
+		deps := setupLeaveServiceTest(t)
+		defer deps.db.Close()
+
+		expectTx(t, deps.sqlMock, true)
+		reason := "insufficient balance"
+		deps.repo.findByIDAndCompanyFn = func(ctx context.Context, cid, targetID string) (*leave.Leave, error) {
+			return &leave.Leave{
+				ID:        uuid.MustParse(targetID),
+				CompanyID: uuid.MustParse(cid),
+				Status:    leave.StatusSubmitted,
+			}, nil
+		}
+		deps.repo.updateFn = func(ctx context.Context, l *leave.Leave) error {
+			assert.Equal(t, leave.StatusRejected, l.Status)
+			assert.Nil(t, l.ApprovedBy)
+			assert.Nil(t, l.ApprovedAt)
+			assert.NotNil(t, l.RejectionReason)
+			assert.Equal(t, reason, *l.RejectionReason)
+			return nil
+		}
+
+		resp, err := deps.service.Reject(ctx, companyID, actorID, id, reason)
+
+		assert.NoError(t, err)
+		assert.Equal(t, leave.StatusRejected, resp.Status)
+		assert.NotNil(t, resp.RejectionReason)
+		assert.Equal(t, reason, *resp.RejectionReason)
 		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
 	})
 }

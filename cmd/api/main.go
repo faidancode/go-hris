@@ -10,10 +10,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 func main() {
 	_ = godotenv.Load()
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
+
 	// apperror.Init() initialize custom error handling (if needed)
 	r := gin.Default()
 

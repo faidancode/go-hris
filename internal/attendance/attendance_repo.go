@@ -3,6 +3,7 @@ package attendance
 import (
 	"context"
 	"database/sql"
+	"go-hris/internal/tenant"
 	"time"
 
 	"gorm.io/gorm"
@@ -37,7 +38,7 @@ func (r *repository) Create(ctx context.Context, a *Attendance) error {
 func (r *repository) FindByEmployeeAndDate(ctx context.Context, companyID, employeeID string, date time.Time) (*Attendance, error) {
 	var a Attendance
 	err := r.db.WithContext(ctx).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Where("employee_id = ?", employeeID).
 		Where("attendance_date = ?", date.Format("2006-01-02")).
 		First(&a).Error
@@ -47,7 +48,7 @@ func (r *repository) FindByEmployeeAndDate(ctx context.Context, companyID, emplo
 func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Attendance, error) {
 	var rows []Attendance
 	err := r.db.WithContext(ctx).
-		Where("company_id = ?", companyID).
+		Scopes(tenant.Scope(companyID)).
 		Order("attendance_date DESC, clock_in DESC").
 		Find(&rows).Error
 	return rows, err

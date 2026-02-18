@@ -14,9 +14,13 @@ type UpdateLeaveRequest struct {
 	StartDate       string  `json:"start_date" binding:"required"`
 	EndDate         string  `json:"end_date" binding:"required"`
 	Reason          string  `json:"reason"`
-	Status          string  `json:"status" binding:"required,oneof=PENDING APPROVED REJECTED CANCELLED"`
+	Status          string  `json:"status" binding:"required,oneof=PENDING SUBMITTED APPROVED REJECTED CANCELLED"`
 	ApprovedBy      *string `json:"approved_by"`
 	RejectionReason *string `json:"rejection_reason"`
+}
+
+type RejectLeaveRequest struct {
+	RejectionReason string `json:"rejection_reason" binding:"required"`
 }
 
 type LeaveResponse struct {
