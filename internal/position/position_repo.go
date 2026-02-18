@@ -41,6 +41,7 @@ func (r *repository) Create(ctx context.Context, dept *Position) error {
 func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Position, error) {
 	var depts []Position
 	err := r.db.WithContext(ctx).
+		Preload("Department").
 		Scopes(tenant.Scope(companyID)).
 		Find(&depts).Error
 	return depts, err
@@ -49,13 +50,15 @@ func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]
 func (r *repository) FindByIDAndCompany(ctx context.Context, companyID string, id string) (*Position, error) {
 	var dept Position
 	err := r.db.WithContext(ctx).
+		Preload("Department").
 		Scopes(tenant.Scope(companyID)).
 		First(&dept, "id = ?", id).Error
 	return &dept, err
 }
 
 func (r *repository) Update(ctx context.Context, dept *Position) error {
-	return r.db.WithContext(ctx).Save(dept).Error
+	// Avoid persisting preloaded Department association on update.
+	return r.db.WithContext(ctx).Omit("Department").Save(dept).Error
 }
 
 func (r *repository) Delete(ctx context.Context, companyID string, id string) error {

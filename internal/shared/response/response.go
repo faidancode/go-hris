@@ -43,6 +43,11 @@ func Success(c *gin.Context, status int, data interface{}, meta *PaginationMeta)
 }
 
 func Error(c *gin.Context, status int, errorCode string, message string, details interface{}) {
+	if status >= 500 {
+		message = "Internal server error"
+		details = nil
+	}
+
 	c.JSON(status, ApiEnvelope{
 		Ok:   false,
 		Data: nil,

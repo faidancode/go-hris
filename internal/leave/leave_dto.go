@@ -23,6 +23,7 @@ type LeaveResponse struct {
 	ID              string  `json:"id"`
 	CompanyID       string  `json:"company_id"`
 	EmployeeID      string  `json:"employee_id"`
+	EmployeeName    string  `json:"employee_name"`
 	LeaveType       string  `json:"leave_type"`
 	StartDate       string  `json:"start_date"`
 	EndDate         string  `json:"end_date"`

@@ -40,6 +40,7 @@ func (r *repository) Create(ctx context.Context, l *Leave) error {
 func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Leave, error) {
 	var leaves []Leave
 	err := r.db.WithContext(ctx).
+		Preload("Employee").
 		Where("company_id = ?", companyID).
 		Order("start_date DESC").
 		Find(&leaves).Error
@@ -49,6 +50,7 @@ func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]
 func (r *repository) FindByIDAndCompany(ctx context.Context, companyID, id string) (*Leave, error) {
 	var l Leave
 	err := r.db.WithContext(ctx).
+		Preload("Employee").
 		Where("company_id = ?", companyID).
 		First(&l, "id = ?", id).Error
 	return &l, err

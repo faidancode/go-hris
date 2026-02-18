@@ -247,16 +247,20 @@ func parseDate(v string) (time.Time, error) {
 
 func mapToResponse(l Leave) LeaveResponse {
 	resp := LeaveResponse{
-		ID:         l.ID.String(),
-		CompanyID:  l.CompanyID.String(),
-		EmployeeID: l.EmployeeID.String(),
-		LeaveType:  l.LeaveType,
-		StartDate:  l.StartDate.Format("2006-01-02"),
-		EndDate:    l.EndDate.Format("2006-01-02"),
-		TotalDays:  l.TotalDays,
-		Reason:     l.Reason,
-		Status:     l.Status,
-		CreatedBy:  l.CreatedBy.String(),
+		ID:           l.ID.String(),
+		CompanyID:    l.CompanyID.String(),
+		EmployeeID:   l.EmployeeID.String(),
+		EmployeeName: "",
+		LeaveType:    l.LeaveType,
+		StartDate:    l.StartDate.Format("2006-01-02"),
+		EndDate:      l.EndDate.Format("2006-01-02"),
+		TotalDays:    l.TotalDays,
+		Reason:       l.Reason,
+		Status:       l.Status,
+		CreatedBy:    l.CreatedBy.String(),
+	}
+	if l.Employee != nil {
+		resp.EmployeeName = l.Employee.FullName
 	}
 	if l.ApprovedBy != nil {
 		v := l.ApprovedBy.String()

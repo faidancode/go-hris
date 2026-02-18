@@ -146,6 +146,9 @@ func mapToResponse(dept Position) PositionResponse {
 	if dept.DepartmentID != uuid.Nil {
 		resp.DepartmentID = dept.DepartmentID.String()
 	}
+	if dept.Department != nil {
+		resp.DepartmentName = dept.Department.Name
+	}
 	if !dept.CreatedAt.IsZero() {
 		resp.CreatedAt = dept.CreatedAt.Format(time.RFC3339)
 	}

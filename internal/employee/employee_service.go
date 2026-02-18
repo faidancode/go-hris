@@ -42,6 +42,7 @@ func (s *service) Create(
 	dept := &Employee{
 		ID:        uuid.New(),
 		Name:      req.Name,
+		Email:     req.Email,
 		CompanyID: uuid.MustParse(companyID),
 	}
 
@@ -102,6 +103,7 @@ func (s *service) Update(
 	}
 
 	dept.Name = req.Name
+	dept.Email = req.Email
 
 	if err := qtx.Update(ctx, dept); err != nil {
 		return EmployeeResponse{}, err
@@ -138,6 +140,7 @@ func mapToResponse(dept Employee) EmployeeResponse {
 	return EmployeeResponse{
 		ID:        dept.ID.String(),
 		Name:      dept.Name,
+		Email:     dept.Email,
 		CompanyID: dept.CompanyID.String(),
 	}
 }

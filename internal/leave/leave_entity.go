@@ -27,4 +27,14 @@ type Leave struct {
 	UpdatedAt  time.Time
 	ApprovedAt *time.Time
 	DeletedAt  gorm.DeletedAt `gorm:"index:idx_leaves_deleted_at"`
+	Employee   *LeaveEmployee `gorm:"foreignKey:EmployeeID;references:ID"`
+}
+
+type LeaveEmployee struct {
+	ID       uuid.UUID `gorm:"type:uuid;primaryKey"`
+	FullName string    `gorm:"column:full_name"`
+}
+
+func (LeaveEmployee) TableName() string {
+	return "employees"
 }
