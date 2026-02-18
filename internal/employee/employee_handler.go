@@ -54,7 +54,7 @@ func (h *Handler) GetAll(c *gin.Context) {
 	if q != "" {
 		filtered := make([]EmployeeResponse, 0, len(resp))
 		for _, e := range resp {
-			if strings.Contains(strings.ToLower(e.Name), q) || strings.Contains(strings.ToLower(e.Email), q) {
+			if strings.Contains(strings.ToLower(e.FullName), q) || strings.Contains(strings.ToLower(e.Email), q) {
 				filtered = append(filtered, e)
 			}
 		}
@@ -74,7 +74,7 @@ func (h *Handler) GetAll(c *gin.Context) {
 		case "id":
 			less = resp[i].ID < resp[j].ID
 		default:
-			less = strings.ToLower(resp[i].Name) < strings.ToLower(resp[j].Name)
+			less = strings.ToLower(resp[i].FullName) < strings.ToLower(resp[j].FullName)
 		}
 		if sortDir == "desc" {
 			return !less

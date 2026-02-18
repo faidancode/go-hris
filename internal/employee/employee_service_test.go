@@ -57,8 +57,9 @@ func TestEmployeeService_Create(t *testing.T) {
 	companyID := uuid.New().String()
 
 	t.Run("success", func(t *testing.T) {
-		req := employee.CreateEmployeeRequest{Name: "HR"}
+		req := employee.CreateEmployeeRequest{FullName: "HR", Email: "hr@example.com", PositionID: uuid.New().String()}
 		deptID := uuid.New()
+		departmentID := uuid.New().String()
 
 		expectTx(t, deps.sqlMock, true)
 
@@ -67,29 +68,39 @@ func TestEmployeeService_Create(t *testing.T) {
 			Return(deps.repo)
 
 		deps.repo.EXPECT().
+			GetDepartmentIDByPosition(ctx, companyID, req.PositionID).
+			Return(departmentID, nil)
+
+		deps.repo.EXPECT().
 			Create(ctx, gomock.Any()).
-			DoAndReturn(func(ctx context.Context, d *employee.Employee) (employee.Employee, error) {
-				assert.Equal(t, req.Name, d.Name)
+			DoAndReturn(func(ctx context.Context, d *employee.Employee) error {
+				assert.Equal(t, req.FullName, d.FullName)
 				assert.Equal(t, companyID, d.CompanyID.String())
+				assert.Equal(t, req.Email, d.Email)
 				d.ID = deptID
-				return *d, nil
+				return nil
 			})
 
 		resp, err := deps.service.Create(ctx, companyID, req)
 
 		assert.NoError(t, err)
 		assert.Equal(t, deptID.String(), resp.ID)
-		assert.Equal(t, req.Name, resp.Name)
+		assert.Equal(t, req.FullName, resp.FullName)
 	})
 
 	t.Run("repo error -> rollback", func(t *testing.T) {
-		req := employee.CreateEmployeeRequest{Name: "HR"}
+		req := employee.CreateEmployeeRequest{FullName: "HR", Email: "hr@example.com", PositionID: uuid.New().String()}
+		departmentID := uuid.New().String()
 
 		expectTx(t, deps.sqlMock, false) // rollback
 
 		deps.repo.EXPECT().
 			WithTx(gomock.Any()).
 			Return(deps.repo)
+
+		deps.repo.EXPECT().
+			GetDepartmentIDByPosition(ctx, companyID, req.PositionID).
+			Return(departmentID, nil)
 
 		deps.repo.EXPECT().
 			Create(ctx, gomock.Any()).
@@ -113,8 +124,8 @@ func TestEmployeeService_GetByID(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		// 1. Pastikan return mock menggunakan targetID yang sama dengan ekspektasi assert
 		expectedDept := &employee.Employee{
-			ID:   uuid.MustParse(targetID),
-			Name: "HR",
+			ID:       uuid.MustParse(targetID),
+			FullName: "HR",
 		}
 
 		deps.repo.EXPECT().
@@ -153,7 +164,8 @@ func TestEmployeeService_Update(t *testing.T) {
 	companyID := uuid.New()
 
 	t.Run("success", func(t *testing.T) {
-		req := employee.UpdateEmployeeRequest{Name: "HR Updated"}
+		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", PositionID: uuid.New().String()}
+		departmentID := uuid.New().String()
 
 		// Mock DB Transaction
 		deps.sqlMock.ExpectBegin()
@@ -161,12 +173,15 @@ func TestEmployeeService_Update(t *testing.T) {
 		// Mock Repository calls
 		// Pastikan WithTx mengembalikan mock repo yang sama atau mock repo baru
 		deps.repo.EXPECT().WithTx(gomock.Any()).Return(deps.repo)
+		deps.repo.EXPECT().
+			GetDepartmentIDByPosition(ctx, companyID.String(), req.PositionID).
+			Return(departmentID, nil)
 
 		// Mock FindByIDAndCompany (Harus ada karena dipanggil di service)
 		existingDept := &employee.Employee{
 			ID:        targetID,
 			CompanyID: companyID,
-			Name:      "Old HR",
+			FullName:  "Old HR",
 		}
 		deps.repo.EXPECT().
 			FindByIDAndCompany(ctx, companyID.String(), targetID.String()).
@@ -176,7 +191,8 @@ func TestEmployeeService_Update(t *testing.T) {
 		deps.repo.EXPECT().
 			Update(ctx, gomock.Any()).
 			DoAndReturn(func(ctx context.Context, d *employee.Employee) error {
-				assert.Equal(t, req.Name, d.Name)
+				assert.Equal(t, req.FullName, d.FullName)
+				assert.Equal(t, req.Email, d.Email)
 				assert.Equal(t, targetID, d.ID)
 				return nil
 			})
@@ -186,14 +202,18 @@ func TestEmployeeService_Update(t *testing.T) {
 		resp, err := deps.service.Update(ctx, companyID.String(), targetID.String(), req)
 
 		assert.NoError(t, err)
-		assert.Equal(t, req.Name, resp.Name)
+		assert.Equal(t, req.FullName, resp.FullName)
 	})
 
 	t.Run("error - employee not found", func(t *testing.T) {
-		req := employee.UpdateEmployeeRequest{Name: "HR Updated"}
+		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", PositionID: uuid.New().String()}
+		departmentID := uuid.New().String()
 
 		deps.sqlMock.ExpectBegin()
 		deps.repo.EXPECT().WithTx(gomock.Any()).Return(deps.repo)
+		deps.repo.EXPECT().
+			GetDepartmentIDByPosition(ctx, companyID.String(), req.PositionID).
+			Return(departmentID, nil)
 
 		// Simulasikan data tidak ditemukan
 		deps.repo.EXPECT().
@@ -210,10 +230,14 @@ func TestEmployeeService_Update(t *testing.T) {
 	})
 
 	t.Run("error - update failed", func(t *testing.T) {
-		req := employee.UpdateEmployeeRequest{Name: "HR Updated"}
+		req := employee.UpdateEmployeeRequest{FullName: "HR Updated", Email: "hr.updated@example.com", PositionID: uuid.New().String()}
+		departmentID := uuid.New().String()
 
 		deps.sqlMock.ExpectBegin()
 		deps.repo.EXPECT().WithTx(gomock.Any()).Return(deps.repo)
+		deps.repo.EXPECT().
+			GetDepartmentIDByPosition(ctx, companyID.String(), req.PositionID).
+			Return(departmentID, nil)
 
 		existingDept := &employee.Employee{ID: targetID, CompanyID: companyID}
 		deps.repo.EXPECT().
@@ -249,7 +273,7 @@ func TestEmployeeService_Delete(t *testing.T) {
 		deps.repo.EXPECT().WithTx(gomock.Any()).Return(deps.repo)
 
 		deps.repo.EXPECT().
-			Delete(ctx, targetID, companyID).
+			Delete(ctx, companyID, targetID).
 			Return(nil)
 
 		err := deps.service.Delete(ctx, companyID, targetID)
@@ -264,7 +288,7 @@ func TestEmployeeService_Delete(t *testing.T) {
 		deps.repo.EXPECT().WithTx(gomock.Any()).Return(deps.repo)
 
 		deps.repo.EXPECT().
-			Delete(ctx, targetID, companyID).
+			Delete(ctx, companyID, targetID).
 			Return(errors.New("db error"))
 
 		err := deps.service.Delete(ctx, companyID, targetID)

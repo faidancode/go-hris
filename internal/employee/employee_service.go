@@ -3,6 +3,7 @@ package employee
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/google/uuid"
 )
@@ -38,12 +39,21 @@ func (s *service) Create(
 	defer tx.Rollback()
 
 	qtx := s.repo.WithTx(tx)
+	departmentID, err := qtx.GetDepartmentIDByPosition(ctx, companyID, req.PositionID)
+	if err != nil {
+		return EmployeeResponse{}, err
+	}
+	if departmentID == "" {
+		return EmployeeResponse{}, errors.New("position not found for this company")
+	}
 
 	dept := &Employee{
-		ID:        uuid.New(),
-		Name:      req.Name,
-		Email:     req.Email,
-		CompanyID: uuid.MustParse(companyID),
+		ID:           uuid.New(),
+		FullName:     req.FullName,
+		Email:        req.Email,
+		CompanyID:    uuid.MustParse(companyID),
+		PositionID:   uuidPtr(req.PositionID),
+		DepartmentID: uuidPtr(departmentID),
 	}
 
 	if err := qtx.Create(ctx, dept); err != nil {
@@ -96,14 +106,23 @@ func (s *service) Update(
 	defer tx.Rollback()
 
 	qtx := s.repo.WithTx(tx)
+	departmentID, err := qtx.GetDepartmentIDByPosition(ctx, companyID, req.PositionID)
+	if err != nil {
+		return EmployeeResponse{}, err
+	}
+	if departmentID == "" {
+		return EmployeeResponse{}, errors.New("position not found for this company")
+	}
 
 	dept, err := qtx.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
 		return EmployeeResponse{}, err
 	}
 
-	dept.Name = req.Name
+	dept.FullName = req.FullName
 	dept.Email = req.Email
+	dept.PositionID = uuidPtr(req.PositionID)
+	dept.DepartmentID = uuidPtr(departmentID)
 
 	if err := qtx.Update(ctx, dept); err != nil {
 		return EmployeeResponse{}, err
@@ -129,7 +148,7 @@ func (s *service) Delete(
 
 	qtx := s.repo.WithTx(tx)
 
-	if err := qtx.Delete(ctx, id, companyID); err != nil {
+	if err := qtx.Delete(ctx, companyID, id); err != nil {
 		return err
 	}
 
@@ -138,10 +157,12 @@ func (s *service) Delete(
 
 func mapToResponse(dept Employee) EmployeeResponse {
 	return EmployeeResponse{
-		ID:        dept.ID.String(),
-		Name:      dept.Name,
-		Email:     dept.Email,
-		CompanyID: dept.CompanyID.String(),
+		ID:           dept.ID.String(),
+		FullName:     dept.FullName,
+		Email:        dept.Email,
+		CompanyID:    dept.CompanyID.String(),
+		DepartmentID: uuidToString(dept.DepartmentID),
+		PositionID:   uuidToString(dept.PositionID),
 	}
 }
 
@@ -151,4 +172,19 @@ func mapToListResponse(depts []Employee) []EmployeeResponse {
 		res[i] = mapToResponse(d)
 	}
 	return res
+}
+
+func uuidPtr(v string) *uuid.UUID {
+	id, err := uuid.Parse(v)
+	if err != nil {
+		return nil
+	}
+	return &id
+}
+
+func uuidToString(v *uuid.UUID) string {
+	if v == nil {
+		return ""
+	}
+	return v.String()
 }

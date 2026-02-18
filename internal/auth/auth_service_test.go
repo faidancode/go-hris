@@ -103,7 +103,7 @@ func TestService_Register(t *testing.T) {
 			Return(&employee.Employee{
 				ID:        eID,
 				CompanyID: cID,
-				Name:      "John Doe",
+				FullName:  "John Doe",
 			}, nil)
 
 		mockRepo.EXPECT().

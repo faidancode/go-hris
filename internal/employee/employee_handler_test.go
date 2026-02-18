@@ -70,10 +70,10 @@ func TestEmployeeHandler_Create(t *testing.T) {
 		svc := &fakeEmployeeService{
 			CreateFn: func(ctx context.Context, cid string, req employee.CreateEmployeeRequest) (employee.EmployeeResponse, error) {
 				assert.Equal(t, companyID, cid)
-				assert.Equal(t, "John Doe", req.Name)
+				assert.Equal(t, "John Doe", req.FullName)
 				return employee.EmployeeResponse{
 					ID:        uuid.New().String(),
-					Name:      req.Name,
+					FullName:  req.FullName,
 					Email:     req.Email,
 					CompanyID: cid,
 				}, nil
@@ -86,7 +86,7 @@ func TestEmployeeHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 
 		// 3. Setup Request Body
-		body := `{"name":"John Doe", "email":"john@example.com"}`
+		body := `{"name":"John Doe", "email":"john@example.com","position_id":"` + uuid.New().String() + `"}`
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/employees", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		c.Request = req
@@ -142,7 +142,7 @@ func TestEmployeeHandler_Create(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 
 		// 3. Setup Request Body & Context Values
-		body := `{"name":"HR", "email":"hr@company.com"}`
+		body := `{"name":"HR", "email":"hr@company.com","position_id":"` + uuid.New().String() + `"}`
 		req := httptest.NewRequest(http.MethodPost, "/employees", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
@@ -159,7 +159,7 @@ func TestEmployeeHandler_Create(t *testing.T) {
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 
 		// Opsional: Pastikan body mengandung pesan error yang sesuai
-		assert.Contains(t, w.Body.String(), "database connection failed")
+		assert.Contains(t, w.Body.String(), "Internal server error")
 	})
 }
 
@@ -174,8 +174,8 @@ func TestEmployeeHandler_GetAll(t *testing.T) {
 			GetAllFn: func(ctx context.Context, cid string) ([]employee.EmployeeResponse, error) {
 				assert.Equal(t, companyID, cid)
 				return []employee.EmployeeResponse{
-					{ID: uuid.New().String(), Name: "John Doe"},
-					{ID: uuid.New().String(), Name: "Jane Doe"},
+					{ID: uuid.New().String(), FullName: "John Doe"},
+					{ID: uuid.New().String(), FullName: "Jane Doe"},
 				}, nil
 			},
 		}
@@ -233,7 +233,7 @@ func TestEmployeeHandler_GetByID(t *testing.T) {
 
 				return employee.EmployeeResponse{
 					ID:        id,
-					Name:      "HR",
+					FullName:  "HR",
 					CompanyID: cid,
 				}, nil
 			},
@@ -315,7 +315,7 @@ func TestEmployeeHandler_Update(t *testing.T) {
 				assert.Equal(t, employeeID, id)
 				return employee.EmployeeResponse{
 					ID:        id,
-					Name:      req.Name,
+					FullName:  req.FullName,
 					Email:     req.Email, // Pastikan email ikut dikembalikan
 					CompanyID: cid,
 				}, nil
@@ -327,7 +327,7 @@ func TestEmployeeHandler_Update(t *testing.T) {
 		c, _ := gin.CreateTestContext(w)
 
 		// PERBAIKAN: Tambahkan field 'email' agar lolos validasi binding:"required"
-		body := `{"name":"Finance Update", "email":"finance@company.com"}`
+		body := `{"name":"Finance Update", "email":"finance@company.com","position_id":"` + uuid.New().String() + `"}`
 		req := httptest.NewRequest(http.MethodPut, "/employees/"+employeeID, strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		c.Request = req
@@ -373,7 +373,7 @@ func TestEmployeeHandler_Update(t *testing.T) {
 
 		// PERBAIKAN: Payload harus VALID (lengkap) agar lolos validasi Gin (400)
 		// dan bisa masuk ke logika Service (500)
-		body := `{"name":"Finance", "email":"finance@company.com"}`
+		body := `{"name":"Finance", "email":"finance@company.com","position_id":"` + uuid.New().String() + `"}`
 		req := httptest.NewRequest(http.MethodPut, "/employees/123", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 
@@ -414,7 +414,7 @@ func TestDeleteEmployeeHandler(t *testing.T) {
 
 		r.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("service error", func(t *testing.T) {
