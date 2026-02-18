@@ -53,9 +53,25 @@ func (s *service) Login(ctx context.Context, email, password string) (accessToke
 		return "", "", AuthResponse{}, err
 	}
 
-	// 4. Generate token (EmployeeID + CompanyID)
-	accessToken, _ = s.generateToken(user.ID.String(), user.EmployeeID.String(), user.CompanyID.String(), time.Minute*15)
-	refreshToken, _ = s.generateToken(user.ID.String(), user.EmployeeID.String(), user.CompanyID.String(), time.Hour*24*7)
+	// 4. Generate token (UserID + EmployeeID + CompanyID + Role)
+	role := user.Role
+	if role == "" {
+		role = "EMPLOYEE"
+	}
+	accessToken, _ = s.generateToken(
+		user.ID.String(),
+		user.EmployeeID.String(),
+		user.CompanyID.String(),
+		role,
+		time.Minute*15,
+	)
+	refreshToken, _ = s.generateToken(
+		user.ID.String(),
+		user.EmployeeID.String(),
+		user.CompanyID.String(),
+		role,
+		time.Hour*24*7,
+	)
 
 	return accessToken, refreshToken, AuthResponse{
 		ID:         user.ID.String(),
@@ -63,8 +79,7 @@ func (s *service) Login(ctx context.Context, email, password string) (accessToke
 		EmployeeID: user.EmployeeID.String(),
 		Email:      user.Email,
 		Name:       user.Name,
-		// Role di UI bisa default ke "Employee", tapi enforcement tetap pakai Casbin
-		Role: "Employee",
+		Role: role,
 	}, nil
 }
 
@@ -100,12 +115,29 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (string
 		return "", "", AuthResponse{}, autherrors.ErrUserNotFound
 	}
 
-	newAccessToken, err := s.generateToken(user.ID.String(), user.CompanyID.String(), user.Role, time.Minute*15)
+	role := user.Role
+	if role == "" {
+		role = "EMPLOYEE"
+	}
+
+	newAccessToken, err := s.generateToken(
+		user.ID.String(),
+		user.EmployeeID.String(),
+		user.CompanyID.String(),
+		role,
+		time.Minute*15,
+	)
 	if err != nil {
 		return "", "", AuthResponse{}, autherrors.ErrTokenGenerationFailed
 	}
 
-	newRefreshToken, err := s.generateToken(user.ID.String(), user.CompanyID.String(), user.Role, time.Hour*24*7)
+	newRefreshToken, err := s.generateToken(
+		user.ID.String(),
+		user.EmployeeID.String(),
+		user.CompanyID.String(),
+		role,
+		time.Hour*24*7,
+	)
 	if err != nil {
 		return "", "", AuthResponse{}, autherrors.ErrTokenGenerationFailed
 	}
@@ -115,7 +147,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (string
 		CompanyID: user.CompanyID.String(),
 		Email:     user.Email,
 		Name:      user.Name,
-		Role:      user.Role,
+		Role:      role,
 	}, nil
 }
 
@@ -131,10 +163,12 @@ func (s *service) GetMe(ctx context.Context, userID string) (*AuthResponse, erro
 	}
 
 	return &AuthResponse{
-		ID:    u.ID.String(),
-		Email: u.Email,
-		Name:  u.Name,
-		Role:  u.Role,
+		ID:         u.ID.String(),
+		Email:      u.Email,
+		Name:       u.Name,
+		Role:       u.Role,
+		EmployeeID: u.EmployeeID.String(),
+		CompanyID:  u.CompanyID.String(),
 	}, nil
 }
 
@@ -190,10 +224,11 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 }
 
 // reusable token generator
-func (s *service) generateToken(userID, companyID, role string, expiry time.Duration) (string, error) {
+func (s *service) generateToken(userID, employeeID, companyID, role string, expiry time.Duration) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":    userID,
-		"company_id": companyID, // Masukkan CompanyID ke dalam JWT agar bisa digunakan di middleware
+		"employee_id": employeeID,
+		"company_id":  companyID, // Masukkan CompanyID ke dalam JWT agar bisa digunakan di middleware
 		"role":       role,
 		"exp":        time.Now().Add(expiry).Unix(),
 	}

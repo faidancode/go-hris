@@ -1,0 +1,14 @@
+DROP INDEX IF EXISTS idx_users_deleted_at;
+DROP INDEX IF EXISTS idx_users_company_id;
+
+ALTER TABLE users
+DROP CONSTRAINT IF EXISTS fk_users_company;
+
+ALTER TABLE users
+ALTER COLUMN role DROP DEFAULT;
+
+ALTER TABLE users
+DROP COLUMN IF EXISTS deleted_at,
+DROP COLUMN IF EXISTS role,
+DROP COLUMN IF EXISTS name,
+DROP COLUMN IF EXISTS company_id;

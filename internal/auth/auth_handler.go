@@ -66,7 +66,7 @@ func (ctrl *Handler) Login(c *gin.Context) {
 		"access_token":  token,
 		"refresh_token": refreshToken,
 	}
-
+	log.Println(responseData)
 	response.Success(c, http.StatusOK, responseData, nil)
 }
 
@@ -74,7 +74,7 @@ func (ctrl *Handler) Me(c *gin.Context) {
 	// asumsi middleware sudah set userID di context
 	log.Printf("auth context: %+v\n", c.Keys)
 
-	userID, ok := c.Get("user_id")
+	userID, ok := c.Get("user_id_validated")
 	if !ok {
 		response.Error(c, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized", nil)
 		return

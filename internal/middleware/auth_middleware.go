@@ -67,7 +67,14 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		companyID, ok := claims["company_id"].(string)
 		if !ok || companyID == "" {
-			response.Error(c, http.StatusUnauthorized, "INVALID_TOKEN", "User ID not found in token", nil)
+			response.Error(c, http.StatusUnauthorized, "INVALID_TOKEN", "Company ID not found in token", nil)
+			c.Abort()
+			return
+		}
+
+		employeeID, ok := claims["employee_id"].(string)
+		if !ok || employeeID == "" {
+			response.Error(c, http.StatusUnauthorized, "INVALID_TOKEN", "Employee ID not found in token", nil)
 			c.Abort()
 			return
 		}
@@ -75,6 +82,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		role, _ := claims["role"].(string)
 
 		c.Set("user_id_validated", userID)
+		c.Set("employee_id", employeeID)
 		c.Set("company_id", companyID)
 		c.Set("role", role)
 

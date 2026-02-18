@@ -31,7 +31,7 @@ VALUES
     (gen_random_uuid (), 'leave', 'read'), -- Melihat daftar cuti
     (gen_random_uuid (), 'leave', 'create'), -- Mengajukan cuti
     (gen_random_uuid (), 'leave', 'approve'), -- Menyetujui/Menolak cuti
-    (gen_random_uuid (), 'leave', 'manage') -- Mengatur kuota cuti tahunan
+    (gen_random_uuid (), 'leave', 'manage'), -- Mengatur kuota cuti tahunan
     -- ROLE MANAGEMENT
     (gen_random_uuid (), 'role', 'read'),
     (gen_random_uuid (), 'role', 'manage'),

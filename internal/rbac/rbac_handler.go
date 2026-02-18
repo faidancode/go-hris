@@ -1,6 +1,12 @@
 package rbac
 
-import "github.com/gin-gonic/gin"
+import (
+	"log"
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
 
 type Handler struct {
 	service Service
@@ -14,17 +20,32 @@ func (h *Handler) Enforce(c *gin.Context) {
 	var req EnforceRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	req.EmployeeID = strings.TrimSpace(req.EmployeeID)
+	req.CompanyID = strings.TrimSpace(req.CompanyID)
+	req.Resource = strings.TrimSpace(req.Resource)
+	req.Action = strings.TrimSpace(req.Action)
+
+	if req.EmployeeID == "" || req.CompanyID == "" || req.Resource == "" || req.Action == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "employee_id, company_id, resource, and action are required",
+		})
+		return
+	}
+
+	log.Printf("enforce req: %+v", req)
 
 	allowed, err := h.service.Enforce(req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		log.Println("error", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, EnforceResponse{
+	c.JSON(http.StatusOK, EnforceResponse{
 		Allowed: allowed,
 	})
 }
