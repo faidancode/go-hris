@@ -23,8 +23,18 @@ type Attendance struct {
 	CreatedAt      time.Time      `gorm:"column:created_at"`
 	UpdatedAt      time.Time      `gorm:"column:updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"column:deleted_at;index"`
+	Employee       *EmployeeRef   `gorm:"foreignKey:EmployeeID;references:ID"`
 }
 
 func (Attendance) TableName() string {
 	return "attendances"
+}
+
+type EmployeeRef struct {
+	ID       uuid.UUID `gorm:"type:uuid;primaryKey"`
+	FullName string    `gorm:"column:full_name"`
+}
+
+func (EmployeeRef) TableName() string {
+	return "employees"
 }

@@ -17,6 +17,7 @@ type AttendanceResponse struct {
 	ID             string   `json:"id"`
 	CompanyID      string   `json:"company_id"`
 	EmployeeID     string   `json:"employee_id"`
+	EmployeeName   string   `json:"employee_name,omitempty"`
 	AttendanceDate string   `json:"attendance_date"`
 	ClockIn        string   `json:"clock_in"`
 	ClockOut       *string  `json:"clock_out,omitempty"`

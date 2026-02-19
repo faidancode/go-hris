@@ -49,6 +49,7 @@ func (r *repository) FindByEmployeeAndDate(ctx context.Context, companyID, emplo
 func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Attendance, error) {
 	var rows []Attendance
 	err := r.db.WithContext(ctx).
+		Preload("Employee").
 		Scopes(tenant.Scope(companyID)).
 		Order("attendance_date DESC, clock_in DESC").
 		Find(&rows).Error

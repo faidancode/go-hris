@@ -162,6 +162,9 @@ func mapToResponse(a Attendance) AttendanceResponse {
 		ExternalRef:    a.ExternalRef,
 		Notes:          a.Notes,
 	}
+	if a.Employee != nil {
+		resp.EmployeeName = a.Employee.FullName
+	}
 	if a.ClockOut != nil {
 		v := a.ClockOut.Format(time.RFC3339)
 		resp.ClockOut = &v
