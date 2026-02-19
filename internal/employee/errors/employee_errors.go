@@ -16,6 +16,11 @@ var (
 		"Employee with the same email already exists",
 		http.StatusConflict,
 	)
+	ErrEmployeeNumberAlreadyExists = apperror.New(
+		apperror.CodeConflict,
+		"Employee number already exists in this company",
+		http.StatusConflict,
+	)
 	ErrInvalidEmployeeID = apperror.New(
 		apperror.CodeInvalidInput,
 		"Invalid employee ID",

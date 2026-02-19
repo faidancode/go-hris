@@ -8,6 +8,7 @@ import (
 	"go-hris/internal/employee"
 	"go-hris/internal/employeesalary"
 	"go-hris/internal/leave"
+	"go-hris/internal/messaging/kafka"
 	"go-hris/internal/payroll"
 	"go-hris/internal/position"
 	"go-hris/internal/rbac"
@@ -19,7 +20,12 @@ import (
 	"gorm.io/gorm"
 )
 
-func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis.Client) error {
+func registerModules(
+	router *gin.Engine,
+	db *sql.DB,
+	gormDB *gorm.DB,
+	rdb *redis.Client,
+) error {
 	// --- Repositories ---
 	rbacRepo := rbac.NewRepository(gormDB)
 	attendanceRepo := attendance.NewRepository(gormDB)
@@ -28,6 +34,7 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 	employeeRepo := employee.NewRepository(gormDB)
 	employeeSalaryRepo := employeesalary.NewRepository(gormDB)
 	leaveRepo := leave.NewRepository(gormDB)
+	outboxRepo := kafka.NewOutboxRepository(db)
 	payrollRepo := payroll.NewRepository(gormDB)
 	positionRepo := position.NewRepository(gormDB)
 
@@ -42,8 +49,8 @@ func registerModules(router *gin.Engine, db *sql.DB, gormDB *gorm.DB, rdb *redis
 	authService := auth.NewService(authRepo, rbacService, employeeRepo)
 	attendanceService := attendance.NewService(db, attendanceRepo)
 	departmentService := department.NewService(db, departmentRepo)
-	employeeService := employee.NewService(db, employeeRepo)
 	employeeSalaryService := employeesalary.NewService(db, employeeSalaryRepo)
+	employeeService := employee.NewServiceWithOutbox(db, employeeRepo, outboxRepo)
 	leaveService := leave.NewService(db, leaveRepo)
 	payrollService := payroll.NewService(db, payrollRepo)
 	positionService := position.NewService(db, positionRepo)

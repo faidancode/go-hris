@@ -33,6 +33,8 @@ help:
 	@echo ""
 	@echo "Run:"
 	@echo "  make run"
+	@echo "  make run-worker"
+	@echo "  make run-consumer"
 
 
 # =========================
@@ -87,11 +89,11 @@ docker-stop:
 
 .PHONY: docker-infra
 docker-infra:
-	docker-compose up -d postgres redis kafka kafka-ui
+	docker-compose up -d postgres redis kafka kafka-ui worker consumer
 
 .PHONY: docker-infra-stop
 docker-infra-stop:
-	docker-compose stop postgres redis kafka kafka-ui
+	docker-compose stop postgres redis kafka kafka-ui worker consumer
 
 .PHONY: docker-logs
 docker-logs:
@@ -137,6 +139,14 @@ test:
 .PHONY: run
 run:
 	$(GO) run ./cmd/api
+
+.PHONY: run-worker
+run-worker:
+	$(GO) run ./cmd/worker
+
+.PHONY: run-consumer
+run-consumer:
+	$(GO) run ./cmd/consumer
 
 # =========================
 # SEEDER / LOAD TEST

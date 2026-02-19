@@ -7,12 +7,14 @@ import (
 	"testing"
 
 	"go-hris/internal/employee"
+	employeeerrors "go-hris/internal/employee/errors"
 	"go-hris/internal/shared/apperror"
 
 	employeeMock "go-hris/internal/employee/mock"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -109,6 +111,30 @@ func TestEmployeeService_Create(t *testing.T) {
 		_, err := deps.service.Create(ctx, companyID, req)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("duplicate employee number -> conflict error", func(t *testing.T) {
+		req := employee.CreateEmployeeRequest{FullName: "HR", Email: "hr@example.com", EmployeeNumber: "EMP-100", Phone: "0812", HireDate: "2026-01-01", EmploymentStatus: "active", PositionID: uuid.New().String()}
+		departmentID := uuid.New().String()
+
+		expectTx(t, deps.sqlMock, false)
+
+		deps.repo.EXPECT().
+			WithTx(gomock.Any()).
+			Return(deps.repo)
+
+		deps.repo.EXPECT().
+			GetDepartmentIDByPosition(ctx, companyID, req.PositionID).
+			Return(departmentID, nil)
+
+		deps.repo.EXPECT().
+			Create(ctx, gomock.Any()).
+			Return(&pgconn.PgError{Code: "23505", ConstraintName: "uq_employee_number"})
+
+		_, err := deps.service.Create(ctx, companyID, req)
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, employeeerrors.ErrEmployeeNumberAlreadyExists)
 	})
 }
 

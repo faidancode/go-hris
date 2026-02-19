@@ -303,6 +303,20 @@
         },
         {
           "name": "Create Employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = {};",
+                  "try { jsonData = pm.response.json(); } catch (e) {}",
+                  "const data = jsonData.data || {};",
+                  "if (data.id) pm.collectionVariables.set('employee_target_id', data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -317,7 +331,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\"\n}"
+              "raw": "{\n  \"full_name\": \"John Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"employee_number\": \"EMP-900\",\n  \"phone\": \"08123456789\",\n  \"hire_date\": \"2026-01-01\",\n  \"employment_status\": \"active\",\n  \"position_id\": \"{{position_id}}\"\n}"
             },
             "url": "{{base_url}}/{{api_prefix}}/employees"
           }
@@ -326,6 +340,40 @@
           "name": "Get Employee By ID",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/employees/{{employee_target_id}}"
+          }
+        },
+        {
+          "name": "Update Employee",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"John Doe Updated\",\n  \"email\": \"john.updated@example.com\",\n  \"employee_number\": \"EMP-900\",\n  \"phone\": \"08123456780\",\n  \"hire_date\": \"2026-01-01\",\n  \"employment_status\": \"active\",\n  \"position_id\": \"{{position_id}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/employees/{{employee_target_id}}"
+          }
+        },
+        {
+          "name": "Delete Employee",
+          "request": {
+            "method": "DELETE",
             "header": [
               {
                 "key": "Authorization",

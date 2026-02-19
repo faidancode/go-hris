@@ -42,6 +42,7 @@ services:
     container_name: go_hris_kafka
     ports:
       - "9092:9092"
+      - "9094:9094"
     environment:
       # Unique identifier for this Kafka node in the cluster (must be unique per node)
       - KAFKA_NODE_ID=1
@@ -52,14 +53,15 @@ services:
       # List of controller nodes for quorum voting: format is node_id@hostname:port
       - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
       
-      # Network interfaces Kafka listens on: PLAINTEXT for clients (9092), CONTROLLER for internal control plane (9093)
-      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      # Network interfaces Kafka listens on:
+      # PLAINTEXT (internal docker network), CONTROLLER (control plane), EXTERNAL (host machine)
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
       
-      # Address that clients use to connect to this broker (must be reachable from client networks)
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      # Address that clients use to connect to this broker
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
       
-      # Maps listener names to security protocols (both using PLAINTEXT/no encryption here)
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      # Maps listener names to security protocols
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       
       # Specifies which listener name(s) the controller uses for internal communication
       - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
@@ -119,9 +121,58 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
-      - DB_URL=postgres://user:password@postgres:5432/go_hris_dev?sslmode=disable
+      - APP_ENV=development
+      - DB_HOST=postgres
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=5432
+      - DB_SSLMODE=disable
+      - REDIS_ADDR=redis:6379
+      - KAFKA_BROKER=kafka:9092
       - PORT=3000
+    command: ["./api"]
+
+  worker:
+    build: .
+    container_name: go_hris_worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      - APP_ENV=development
+      - DB_HOST=postgres
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=5432
+      - DB_SSLMODE=disable
+      - KAFKA_BROKER=kafka:9092
+    command: ["./worker"]
+
+  consumer:
+    build: .
+    container_name: go_hris_consumer
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      - APP_ENV=development
+      - DB_HOST=postgres
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=5432
+      - DB_SSLMODE=disable
+      - KAFKA_BROKER=kafka:9092
+    command: ["./consumer"]
 
   # Outbox Processor Worker
 volumes:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"go-hris/internal/tenant"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -36,6 +37,46 @@ func (r *repository) WithTx(tx *sql.Tx) Repository {
 }
 
 func (r *repository) Create(ctx context.Context, dept *Employee) error {
+	if r.tx != nil {
+		query := `
+INSERT INTO employees (
+	id,
+	company_id,
+	department_id,
+	position_id,
+	employee_number,
+	full_name,
+	email,
+	phone,
+	hire_date,
+	employment_status,
+	created_at,
+	updated_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+`
+		now := time.Now().UTC()
+		if dept.CreatedAt.IsZero() {
+			dept.CreatedAt = now
+		}
+		dept.UpdatedAt = now
+		_, err := r.tx.ExecContext(
+			ctx,
+			query,
+			dept.ID,
+			dept.CompanyID,
+			dept.DepartmentID,
+			dept.PositionID,
+			dept.EmployeeNumber,
+			dept.FullName,
+			dept.Email,
+			dept.Phone,
+			dept.HireDate,
+			dept.EmploymentStatus,
+			dept.CreatedAt,
+			dept.UpdatedAt,
+		)
+		return err
+	}
 	return r.db.WithContext(ctx).Create(dept).Error
 }
 
@@ -58,6 +99,23 @@ func (r *repository) FindByIDAndCompany(ctx context.Context, companyID string, i
 }
 
 func (r *repository) GetDepartmentIDByPosition(ctx context.Context, companyID, positionID string) (string, error) {
+	if r.tx != nil {
+		var departmentID string
+		query := `
+SELECT department_id::text
+FROM positions
+WHERE id = $1
+  AND company_id = $2
+  AND deleted_at IS NULL
+LIMIT 1
+`
+		err := r.tx.QueryRowContext(ctx, query, positionID, companyID).Scan(&departmentID)
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return departmentID, err
+	}
+
 	var departmentID string
 	err := r.db.WithContext(ctx).
 		Table("positions").

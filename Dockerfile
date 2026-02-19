@@ -18,8 +18,10 @@ RUN go mod download
 # Baru copy seluruh source code
 COPY . .
 
-# Build aplikasi dengan flag static agar bisa jalan di alpine
-RUN CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api/main.go
+# Build binaries
+RUN CGO_ENABLED=0 GOOS=linux go build -o api ./cmd/api/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o worker ./cmd/worker/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o consumer ./cmd/consumer/main.go
 
 # Step 2: Final image stage
 FROM alpine:latest
@@ -28,7 +30,9 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 
-COPY --from=builder /app/main .
+COPY --from=builder /app/api .
+COPY --from=builder /app/worker .
+COPY --from=builder /app/consumer .
 
 COPY .env .
 
@@ -37,4 +41,4 @@ COPY .env .
 
 EXPOSE 3000
 
-CMD ["./main"]
+CMD ["./api"]

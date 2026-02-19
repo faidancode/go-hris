@@ -1,7 +1,7 @@
 package employee
 
 import (
-	"errors"
+	"go-hris/internal/shared/apperror"
 	"go-hris/internal/shared/response"
 	"net/http"
 	"sort"
@@ -25,6 +25,18 @@ func NewHandler(service Service, logger ...*zap.Logger) *Handler {
 	return &Handler{service: service, logger: l}
 }
 
+func (h *Handler) writeServiceError(c *gin.Context, err error) {
+	httpErr := apperror.ToHTTP(err)
+	h.logger.Warn("employee request failed",
+		zap.String("method", c.Request.Method),
+		zap.String("path", c.FullPath()),
+		zap.Int("status", httpErr.Status),
+		zap.String("code", httpErr.Code),
+		zap.String("message", httpErr.Message),
+	)
+	response.Error(c, httpErr.Status, httpErr.Code, httpErr.Message, httpErr.Details)
+}
+
 func (h *Handler) Create(c *gin.Context) {
 	companyID := c.GetString("company_id")
 	h.logger.Debug("http create employee", zap.String("company_id", companyID))
@@ -37,8 +49,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	resp, err := h.service.Create(c.Request.Context(), companyID, req)
 	if err != nil {
-		h.logger.Error("http create employee failed", zap.Error(err))
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -52,12 +63,7 @@ func (h *Handler) GetAll(c *gin.Context) {
 
 	resp, err := h.service.GetAll(ctx, companyID)
 	if err != nil {
-		h.logger.Error("http get all employees failed", zap.Error(err))
-		if errors.Is(err, errors.New("forbidden")) {
-			response.Error(c, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
-			return
-		}
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -127,12 +133,7 @@ func (h *Handler) GetById(c *gin.Context) {
 
 	resp, err := h.service.GetByID(ctx, companyID, targetID)
 	if err != nil {
-		h.logger.Error("http get employee by id failed", zap.Error(err))
-		if errors.Is(err, errors.New("forbidden")) {
-			response.Error(c, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
-			return
-		}
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -156,8 +157,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	resp, err := h.service.Update(ctx, companyID, id, req)
 	if err != nil {
-		h.logger.Error("http update employee failed", zap.Error(err))
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -174,8 +174,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	)
 
 	if err := h.service.Delete(ctx, companyID, id); err != nil {
-		h.logger.Error("http delete employee failed", zap.Error(err))
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 

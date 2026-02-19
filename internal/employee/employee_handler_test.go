@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"go-hris/internal/employee"
+	employeeerrors "go-hris/internal/employee/errors"
+	"go-hris/internal/shared/apperror"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -160,6 +162,31 @@ func TestEmployeeHandler_Create(t *testing.T) {
 
 		// Opsional: Pastikan body mengandung pesan error yang sesuai
 		assert.Contains(t, w.Body.String(), "Internal server error")
+	})
+
+	t.Run("duplicate employee number returns conflict", func(t *testing.T) {
+		companyID := uuid.New().String()
+		svc := &fakeEmployeeService{
+			CreateFn: func(ctx context.Context, cid string, req employee.CreateEmployeeRequest) (employee.EmployeeResponse, error) {
+				return employee.EmployeeResponse{}, employeeerrors.ErrEmployeeNumberAlreadyExists
+			},
+		}
+
+		h := employee.NewHandler(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		body := `{"full_name":"John Doe","email":"john2@example.com","employee_number":"EMP-900","phone":"0812","hire_date":"2026-01-01","employment_status":"active","position_id":"` + uuid.New().String() + `"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/employees", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		c.Request = req
+		c.Set("company_id", companyID)
+
+		h.Create(c)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+		assert.Contains(t, w.Body.String(), apperror.CodeConflict)
+		assert.Contains(t, w.Body.String(), "Employee number already exists")
 	})
 }
 

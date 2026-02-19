@@ -3,7 +3,10 @@ package employee
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"go-hris/internal/events"
+	"go-hris/internal/messaging/kafka"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,15 +25,25 @@ type Service interface {
 type service struct {
 	db     *sql.DB
 	repo   Repository
+	outbox kafka.OutboxRepository
 	logger *zap.Logger
 }
 
 func NewService(db *sql.DB, repo Repository, logger ...*zap.Logger) Service {
+	return NewServiceWithOutbox(db, repo, nil, logger...)
+}
+
+func NewServiceWithOutbox(
+	db *sql.DB,
+	repo Repository,
+	outboxRepo kafka.OutboxRepository,
+	logger ...*zap.Logger,
+) Service {
 	l := zap.L().Named("employee.service")
 	if len(logger) > 0 && logger[0] != nil {
 		l = logger[0].Named("employee.service")
 	}
-	return &service{db: db, repo: repo, logger: l}
+	return &service{db: db, repo: repo, outbox: outboxRepo, logger: l}
 }
 
 func (s *service) Create(
@@ -88,12 +101,48 @@ func (s *service) Create(
 
 	if err := qtx.Create(ctx, empl); err != nil {
 		s.logger.Error("create employee persist failed", zap.Error(err))
-		return EmployeeResponse{}, err
+		return EmployeeResponse{}, mapRepositoryError(err)
+	}
+
+	event := events.EmployeeCreatedEvent{
+		EventType:  "employee_created",
+		EmployeeID: empl.ID.String(),
+		CompanyID:  companyID,
+		OccurredAt: time.Now().UTC(),
+	}
+	if s.outbox != nil {
+		payload, err := json.Marshal(event)
+		if err != nil {
+			s.logger.Error("marshal employee_created event failed", zap.Error(err))
+			return EmployeeResponse{}, err
+		}
+
+		outboxRepo := s.outbox.WithTx(tx)
+		if err := outboxRepo.Create(ctx, kafka.OutboxEvent{
+			ID:            uuid.NewString(),
+			AggregateType: "employee",
+			AggregateID:   empl.ID.String(),
+			EventType:     event.EventType,
+			Topic:         events.EmployeeCreatedTopic,
+			Payload:       payload,
+			Status:        kafka.OutboxStatusPending,
+		}); err != nil {
+			s.logger.Error("create employee outbox persist failed",
+				zap.String("employee_id", empl.ID.String()),
+				zap.Error(err),
+			)
+			return EmployeeResponse{}, err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		s.logger.Error("create employee commit failed", zap.Error(err))
 		return EmployeeResponse{}, err
+	}
+	if s.outbox != nil {
+		s.logger.Info("create employee outbox queued",
+			zap.String("employee_id", empl.ID.String()),
+		)
 	}
 	s.logger.Info("create employee success", zap.String("employee_id", empl.ID.String()))
 
@@ -108,7 +157,7 @@ func (s *service) GetAll(
 	depts, err := s.repo.FindAllByCompany(ctx, companyID)
 	if err != nil {
 		s.logger.Error("get all employees failed", zap.Error(err))
-		return nil, err
+		return nil, mapRepositoryError(err)
 	}
 
 	return mapToListResponse(depts), nil
@@ -125,7 +174,7 @@ func (s *service) GetByID(
 	empl, err := s.repo.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
 		s.logger.Error("get employee by id failed", zap.Error(err))
-		return EmployeeResponse{}, err
+		return EmployeeResponse{}, mapRepositoryError(err)
 	}
 
 	return mapToResponse(*empl), nil
@@ -174,7 +223,7 @@ func (s *service) Update(
 	empl, err := qtx.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
 		s.logger.Error("update employee fetch existing failed", zap.Error(err))
-		return EmployeeResponse{}, err
+		return EmployeeResponse{}, mapRepositoryError(err)
 	}
 
 	empl.FullName = req.FullName
@@ -188,7 +237,7 @@ func (s *service) Update(
 
 	if err := qtx.Update(ctx, empl); err != nil {
 		s.logger.Error("update employee persist failed", zap.Error(err))
-		return EmployeeResponse{}, err
+		return EmployeeResponse{}, mapRepositoryError(err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -220,7 +269,7 @@ func (s *service) Delete(
 
 	if err := qtx.Delete(ctx, companyID, id); err != nil {
 		s.logger.Error("delete employee failed", zap.Error(err))
-		return err
+		return mapRepositoryError(err)
 	}
 
 	if err := tx.Commit(); err != nil {
