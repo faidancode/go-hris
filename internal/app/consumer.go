@@ -6,6 +6,7 @@ import (
 	"go-hris/internal/employeesalary"
 	"go-hris/internal/events"
 	"go-hris/internal/messaging/kafka/consumer"
+	"go-hris/internal/payroll"
 	"go-hris/internal/shared/connection"
 	"os"
 	"os/signal"
@@ -44,6 +45,8 @@ func RunConsumer() error {
 
 	employeeSalaryRepo := employeesalary.NewRepository(gormDB)
 	employeeSalaryService := employeesalary.NewService(sqlDB, employeeSalaryRepo)
+	payrollRepo := payroll.NewRepository(gormDB)
+	payrollService := payroll.NewService(sqlDB, payrollRepo)
 
 	reader := kafkago.NewReader(kafkago.ReaderConfig{
 		Brokers:        []string{kafkaBroker},
@@ -53,11 +56,20 @@ func RunConsumer() error {
 		StartOffset:    kafkago.FirstOffset,
 	})
 	defer reader.Close()
+	payslipReader := kafkago.NewReader(kafkago.ReaderConfig{
+		Brokers:        []string{kafkaBroker},
+		Topic:          events.PayrollPayslipRequestedTopic,
+		GroupID:        "go-hris-payroll-payslip",
+		CommitInterval: 0,
+		StartOffset:    kafkago.FirstOffset,
+	})
+	defer payslipReader.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go consumer.ConsumeEmployeeLifecycle(ctx, reader, employeeSalaryService, logger)
+	go consumer.ConsumePayrollPayslipRequested(ctx, payslipReader, payrollService, logger)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

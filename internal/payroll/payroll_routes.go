@@ -24,17 +24,21 @@ func RegisterRoutes(
 	{
 		payrolls.GET("", middleware.RBACAuthorize(rbacService, "payroll", "read"), handler.GetAll)
 		payrolls.GET("/:id", middleware.RBACAuthorize(rbacService, "payroll", "read"), handler.GetById)
+		payrolls.GET("/:id/breakdown", middleware.RBACAuthorize(rbacService, "payroll", "read"), handler.GetBreakdown)
+		payrolls.GET("/:id/payslip/download", middleware.RBACAuthorize(rbacService, "payroll", "read"), handler.DownloadPayslip)
 		if redisClient != nil {
 			payrolls.POST(
 				"",
 				middleware.Idempotency(redisClient),
-				middleware.RBACAuthorize(rbacService, "payroll", "approve"),
+				middleware.RBACAuthorize(rbacService, "payroll", "create"),
 				handler.Create,
 			)
 		} else {
-			payrolls.POST("", middleware.RBACAuthorize(rbacService, "payroll", "approve"), handler.Create)
+			payrolls.POST("", middleware.RBACAuthorize(rbacService, "payroll", "create"), handler.Create)
 		}
-		payrolls.PUT("/:id", middleware.RBACAuthorize(rbacService, "payroll", "approve"), handler.Update)
-		payrolls.DELETE("/:id", middleware.RBACAuthorize(rbacService, "payroll", "approve"), handler.Delete)
+		payrolls.POST("/:id/regenerate", middleware.RBACAuthorize(rbacService, "payroll", "create"), handler.Regenerate)
+		payrolls.POST("/:id/approve", middleware.RBACAuthorize(rbacService, "payroll", "approve"), handler.Approve)
+		payrolls.POST("/:id/mark-paid", middleware.RBACAuthorize(rbacService, "payroll", "pay"), handler.MarkAsPaid)
+		payrolls.DELETE("/:id", middleware.RBACAuthorize(rbacService, "payroll", "delete"), handler.Delete)
 	}
 }

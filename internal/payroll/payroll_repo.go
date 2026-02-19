@@ -13,8 +13,9 @@ import (
 type Repository interface {
 	WithTx(tx *sql.Tx) Repository
 	Create(ctx context.Context, payroll *Payroll) error
-	FindAllByCompany(ctx context.Context, companyID string) ([]Payroll, error)
+	FindAllByCompany(ctx context.Context, companyID string, filter PayrollQueryFilter) ([]Payroll, error)
 	FindByIDAndCompany(ctx context.Context, companyID string, id string) (*Payroll, error)
+	ReplaceComponents(ctx context.Context, companyID string, payrollID string, components []PayrollComponent) error
 	Update(ctx context.Context, payroll *Payroll) error
 	Delete(ctx context.Context, companyID string, id string) error
 	EmployeeBelongsToCompany(ctx context.Context, companyID string, employeeID string) (bool, error)
@@ -41,11 +42,29 @@ func (r *repository) Create(ctx context.Context, payroll *Payroll) error {
 	return r.db.WithContext(ctx).Create(payroll).Error
 }
 
-func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Payroll, error) {
+func (r *repository) FindAllByCompany(ctx context.Context, companyID string, filter PayrollQueryFilter) ([]Payroll, error) {
 	var payrolls []Payroll
-	err := r.db.WithContext(ctx).
-		Scopes(tenant.Scope(companyID)).
-		Order("period_start DESC").
+
+	db := r.db.WithContext(ctx).
+		Model(&Payroll{}).
+		Preload("Employee").
+		Joins("LEFT JOIN employees ON employees.id = payrolls.employee_id AND employees.deleted_at IS NULL").
+		Where("payrolls.company_id = ?", companyID)
+
+	if filter.Status != nil && *filter.Status != "" {
+		db = db.Where("payrolls.status = ?", *filter.Status)
+	}
+	if filter.DepartmentID != nil && *filter.DepartmentID != "" {
+		db = db.Where("employees.department_id = ?", *filter.DepartmentID)
+	}
+	if filter.PeriodStart != nil && *filter.PeriodStart != "" {
+		db = db.Where("payrolls.period_end >= ?", *filter.PeriodStart)
+	}
+	if filter.PeriodEnd != nil && *filter.PeriodEnd != "" {
+		db = db.Where("payrolls.period_start <= ?", *filter.PeriodEnd)
+	}
+
+	err := db.Order("payrolls.period_start DESC").
 		Find(&payrolls).Error
 	return payrolls, err
 }
@@ -54,8 +73,30 @@ func (r *repository) FindByIDAndCompany(ctx context.Context, companyID string, i
 	var payroll Payroll
 	err := r.db.WithContext(ctx).
 		Scopes(tenant.Scope(companyID)).
+		Preload("Employee").
+		Preload("Components").
 		First(&payroll, "id = ?", id).Error
 	return &payroll, err
+}
+
+func (r *repository) ReplaceComponents(
+	ctx context.Context,
+	companyID string,
+	payrollID string,
+	components []PayrollComponent,
+) error {
+	db := r.db.WithContext(ctx)
+	if err := db.Scopes(tenant.Scope(companyID)).
+		Where("payroll_id = ?", payrollID).
+		Delete(&PayrollComponent{}).Error; err != nil {
+		return err
+	}
+
+	if len(components) == 0 {
+		return nil
+	}
+
+	return db.Create(&components).Error
 }
 
 func (r *repository) Update(ctx context.Context, payroll *Payroll) error {

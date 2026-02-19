@@ -1,0 +1,2 @@
+ALTER TABLE payrolls
+DROP COLUMN IF EXISTS deleted_at;

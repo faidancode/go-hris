@@ -2,7 +2,8 @@ package payroll
 
 import (
 	"encoding/json"
-	"errors"
+	payrollerrors "go-hris/internal/payroll/errors"
+	"go-hris/internal/shared/apperror"
 	"go-hris/internal/shared/response"
 	"net/http"
 	"strconv"
@@ -25,6 +26,19 @@ func NewHandlerWithRedis(service Service, rdb *redis.Client) *Handler {
 	return &Handler{service: service, rdb: rdb}
 }
 
+func getActorID(c *gin.Context) string {
+	actorID := c.GetString("employee_id")
+	if actorID == "" {
+		actorID = c.GetString("user_id_validated")
+	}
+	return actorID
+}
+
+func (h *Handler) writeServiceError(c *gin.Context, err error) {
+	httpErr := apperror.ToHTTP(err)
+	response.Error(c, httpErr.Status, httpErr.Code, httpErr.Message, httpErr.Details)
+}
+
 func (h *Handler) Create(c *gin.Context) {
 	lockKey, _ := c.Get("idempotency_lock_key")
 	cacheKey, _ := c.Get("idempotency_cache_key")
@@ -36,10 +50,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	companyID := c.GetString("company_id")
-	actorID := c.GetString("employee_id")
-	if actorID == "" {
-		actorID = c.GetString("user_id_validated")
-	}
+	actorID := getActorID(c)
 
 	var req CreatePayrollRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -49,7 +60,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	resp, err := h.service.Create(c.Request.Context(), companyID, actorID, req)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -67,14 +78,15 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) GetAll(c *gin.Context) {
 	ctx := c.Request.Context()
 	companyID := c.GetString("company_id")
+	var filterReq GetPayrollsFilterRequest
+	if err := c.ShouldBindQuery(&filterReq); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "Input tidak valid", err.Error())
+		return
+	}
 
-	resp, err := h.service.GetAll(ctx, companyID)
+	resp, err := h.service.GetAll(ctx, companyID, filterReq)
 	if err != nil {
-		if errors.Is(err, errors.New("forbidden")) {
-			response.Error(c, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
-			return
-		}
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -108,35 +120,90 @@ func (h *Handler) GetById(c *gin.Context) {
 
 	resp, err := h.service.GetByID(ctx, companyID, targetID)
 	if err != nil {
-		if errors.Is(err, errors.New("forbidden")) {
-			response.Error(c, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
-			return
-		}
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
 	response.Success(c, http.StatusOK, resp, nil)
 }
 
-func (h *Handler) Update(c *gin.Context) {
+func (h *Handler) GetBreakdown(c *gin.Context) {
+	ctx := c.Request.Context()
+	targetID := c.Param("id")
+	companyID := c.GetString("company_id")
+
+	resp, err := h.service.GetBreakdown(ctx, companyID, targetID)
+	if err != nil {
+		h.writeServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
+func (h *Handler) DownloadPayslip(c *gin.Context) {
+	ctx := c.Request.Context()
+	targetID := c.Param("id")
+	companyID := c.GetString("company_id")
+
+	resp, err := h.service.GetByID(ctx, companyID, targetID)
+	if err != nil {
+		h.writeServiceError(c, err)
+		return
+	}
+	if resp.PayslipURL == nil || *resp.PayslipURL == "" {
+		h.writeServiceError(c, payrollerrors.ErrPayslipNotGenerated)
+		return
+	}
+
+	c.Redirect(http.StatusTemporaryRedirect, *resp.PayslipURL)
+}
+
+func (h *Handler) Regenerate(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
 	companyID := c.GetString("company_id")
-	actorID := c.GetString("employee_id")
-	if actorID == "" {
-		actorID = c.GetString("user_id_validated")
-	}
+	actorID := getActorID(c)
 
-	var req UpdatePayrollRequest
+	var req RegeneratePayrollRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "Input tidak valid", err.Error())
 		return
 	}
 
-	resp, err := h.service.Update(ctx, companyID, actorID, id, req)
+	resp, err := h.service.Regenerate(ctx, companyID, actorID, id, req)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
+func (h *Handler) Approve(c *gin.Context) {
+	ctx := c.Request.Context()
+	id := c.Param("id")
+	companyID := c.GetString("company_id")
+	actorID := getActorID(c)
+
+	resp, err := h.service.Approve(ctx, companyID, actorID, id)
+	if err != nil {
+		h.writeServiceError(c, err)
+		return
+	}
+
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
+func (h *Handler) MarkAsPaid(c *gin.Context) {
+	ctx := c.Request.Context()
+	id := c.Param("id")
+	companyID := c.GetString("company_id")
+	actorID := getActorID(c)
+
+	resp, err := h.service.MarkAsPaid(ctx, companyID, actorID, id)
+	if err != nil {
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -149,9 +216,9 @@ func (h *Handler) Delete(c *gin.Context) {
 	companyID := c.GetString("company_id")
 
 	if err := h.service.Delete(ctx, companyID, id); err != nil {
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
-	c.Status(http.StatusNoContent)
+	response.Success(c, http.StatusOK, gin.H{"deleted": true}, nil)
 }

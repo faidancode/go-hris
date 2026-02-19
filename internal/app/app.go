@@ -5,6 +5,7 @@ import (
 	"go-hris/internal/shared/connection"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,6 +46,15 @@ func BuildApp(router *gin.Engine) error {
 	if err := registerModules(router, sqlDB, gormDB, redisClient); err != nil {
 		return err
 	}
+
+	payslipDir := os.Getenv("PAYSLIP_STORAGE_DIR")
+	if payslipDir == "" {
+		payslipDir = filepath.Join("storage", "payslips")
+	}
+	if err := os.MkdirAll(payslipDir, 0o755); err != nil {
+		return err
+	}
+	router.Static("/files/payslips", payslipDir)
 
 	return nil
 }

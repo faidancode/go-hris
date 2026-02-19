@@ -52,7 +52,7 @@ func registerModules(
 	employeeSalaryService := employeesalary.NewService(db, employeeSalaryRepo)
 	employeeService := employee.NewServiceWithOutbox(db, employeeRepo, outboxRepo)
 	leaveService := leave.NewService(db, leaveRepo)
-	payrollService := payroll.NewService(db, payrollRepo)
+	payrollService := payroll.NewServiceWithOutbox(db, payrollRepo, outboxRepo)
 	positionService := position.NewService(db, positionRepo)
 
 	// --- Handlers ---
