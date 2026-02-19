@@ -104,6 +104,9 @@ docker-logs:
 docker-migrate:
 	docker-compose run --rm migrator
 
+db-up:
+	docker compose up -d --force-recreate postgres	
+
 # =========================
 # MONITORING
 # =========================

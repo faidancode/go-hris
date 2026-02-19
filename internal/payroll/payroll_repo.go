@@ -99,8 +99,9 @@ func (r *repository) ReplaceComponents(
 	return db.Create(&components).Error
 }
 
-func (r *repository) Update(ctx context.Context, payroll *Payroll) error {
-	return r.db.WithContext(ctx).Save(payroll).Error
+func (r *repository) Update(ctx context.Context, p *Payroll) error {
+	// Avoid persisting preloaded Employee association on update.
+	return r.db.WithContext(ctx).Omit("Employee").Save(p).Error
 }
 
 func (r *repository) Delete(ctx context.Context, companyID string, id string) error {
