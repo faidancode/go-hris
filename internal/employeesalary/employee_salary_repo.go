@@ -39,16 +39,16 @@ func (r *repository) Create(ctx context.Context, salary *EmployeeSalary) error {
 func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]EmployeeSalary, error) {
 	var salaries []EmployeeSalary
 	query := `
-SELECT DISTINCT ON (employee_salaries.employee_id)
-	employee_salaries.*
+SELECT
+	employee_salaries.*,
+	employees.full_name AS employee_name
 FROM employee_salaries
 JOIN employees ON employees.id = employee_salaries.employee_id
 WHERE employees.company_id = ?
 ORDER BY
-	employee_salaries.employee_id,
-	CASE WHEN employee_salaries.effective_date <= CURRENT_DATE THEN 0 ELSE 1 END ASC,
-	CASE WHEN employee_salaries.effective_date <= CURRENT_DATE THEN employee_salaries.effective_date END DESC,
-	CASE WHEN employee_salaries.effective_date > CURRENT_DATE THEN employee_salaries.effective_date END ASC
+	employees.full_name ASC,
+	employee_salaries.effective_date DESC,
+	employee_salaries.created_at DESC
 `
 
 	err := r.db.WithContext(ctx).Raw(query, companyID).Scan(&salaries).Error
@@ -59,6 +59,7 @@ func (r *repository) FindByIDAndCompany(ctx context.Context, companyID string, i
 	var salary EmployeeSalary
 	err := r.db.WithContext(ctx).
 		Table("employee_salaries").
+		Select("employee_salaries.*, employees.full_name AS employee_name").
 		Joins("JOIN employees ON employees.id = employee_salaries.employee_id").
 		Where("employee_salaries.id = ?", id).
 		Where("employees.company_id = ?", companyID).

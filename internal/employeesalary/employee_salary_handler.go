@@ -1,9 +1,10 @@
 package employeesalary
 
 import (
-	"errors"
+	"go-hris/internal/shared/apperror"
 	"go-hris/internal/shared/response"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,6 +17,11 @@ func NewHandler(service Service) *Handler {
 	return &Handler{service: service}
 }
 
+func (h *Handler) writeServiceError(c *gin.Context, err error) {
+	httpErr := apperror.ToHTTP(err)
+	response.Error(c, httpErr.Status, httpErr.Code, httpErr.Message, httpErr.Details)
+}
+
 func (h *Handler) Create(c *gin.Context) {
 	companyID := c.GetString("company_id")
 	var req CreateEmployeeSalaryRequest
@@ -26,7 +32,7 @@ func (h *Handler) Create(c *gin.Context) {
 
 	resp, err := h.service.Create(c.Request.Context(), companyID, req)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -39,15 +45,31 @@ func (h *Handler) GetAll(c *gin.Context) {
 
 	resp, err := h.service.GetAll(ctx, companyID)
 	if err != nil {
-		if errors.Is(err, errors.New("forbidden")) {
-			response.Error(c, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
-			return
-		}
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
-	response.Success(c, http.StatusOK, resp, nil)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	total := int64(len(resp))
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if start > len(resp) {
+		start = len(resp)
+	}
+	if end > len(resp) {
+		end = len(resp)
+	}
+
+	meta := response.NewPaginationMeta(total, page, pageSize)
+	response.Success(c, http.StatusOK, resp[start:end], &meta)
 }
 
 func (h *Handler) GetById(c *gin.Context) {
@@ -57,11 +79,7 @@ func (h *Handler) GetById(c *gin.Context) {
 
 	resp, err := h.service.GetByID(ctx, companyID, targetID)
 	if err != nil {
-		if errors.Is(err, errors.New("forbidden")) {
-			response.Error(c, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
-			return
-		}
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -80,7 +98,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	resp, err := h.service.Update(ctx, companyID, id, req)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 
@@ -93,7 +111,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	companyID := c.GetString("company_id")
 
 	if err := h.service.Delete(ctx, companyID, id); err != nil {
-		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
+		h.writeServiceError(c, err)
 		return
 	}
 

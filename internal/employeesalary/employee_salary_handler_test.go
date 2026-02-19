@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"go-hris/internal/employeesalary"
+	employeesalaryerrors "go-hris/internal/employeesalary/errors"
+	"go-hris/internal/shared/apperror"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -108,6 +110,30 @@ func TestEmployeeSalaryHandler_Create(t *testing.T) {
 		h.Create(c)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("duplicate effective date returns conflict", func(t *testing.T) {
+		svc := &fakeEmployeeSalaryService{
+			createFn: func(ctx context.Context, cid string, req employeesalary.CreateEmployeeSalaryRequest) (employeesalary.EmployeeSalaryResponse, error) {
+				return employeesalary.EmployeeSalaryResponse{}, employeesalaryerrors.ErrSalaryEffectiveDateAlreadyExists
+			},
+		}
+
+		h := employeesalary.NewHandler(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		body := `{"employee_id":"` + uuid.New().String() + `","base_salary":10000000,"effective_date":"2026-02-01"}`
+		req := httptest.NewRequest(http.MethodPost, "/employee-salaries", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		c.Request = req
+		c.Set("company_id", uuid.New().String())
+
+		h.Create(c)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+		assert.Contains(t, w.Body.String(), apperror.CodeConflict)
+		assert.Contains(t, w.Body.String(), "effective date already exists")
 	})
 }
 

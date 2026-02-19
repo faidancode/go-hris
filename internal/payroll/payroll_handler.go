@@ -5,6 +5,7 @@ import (
 	"errors"
 	"go-hris/internal/shared/response"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -77,7 +78,27 @@ func (h *Handler) GetAll(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, resp, nil)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	total := int64(len(resp))
+	start := (page - 1) * pageSize
+	end := start + pageSize
+	if start > len(resp) {
+		start = len(resp)
+	}
+	if end > len(resp) {
+		end = len(resp)
+	}
+
+	meta := response.NewPaginationMeta(total, page, pageSize)
+	response.Success(c, http.StatusOK, resp[start:end], &meta)
 }
 
 func (h *Handler) GetById(c *gin.Context) {

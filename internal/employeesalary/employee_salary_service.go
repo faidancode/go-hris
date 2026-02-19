@@ -57,12 +57,12 @@ func (s *service) Create(
 	}
 
 	if err := qtx.Create(ctx, salary); err != nil {
-		return EmployeeSalaryResponse{}, err
+		return EmployeeSalaryResponse{}, mapRepositoryError(err)
 	}
 
 	created, err := qtx.FindByIDAndCompany(ctx, companyID, salary.ID.String())
 	if err != nil {
-		return EmployeeSalaryResponse{}, err
+		return EmployeeSalaryResponse{}, mapRepositoryError(err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -78,7 +78,7 @@ func (s *service) GetAll(
 ) ([]EmployeeSalaryResponse, error) {
 	salaries, err := s.repo.FindAllByCompany(ctx, companyID)
 	if err != nil {
-		return nil, err
+		return nil, mapRepositoryError(err)
 	}
 
 	return mapToListResponse(salaries), nil
@@ -90,7 +90,7 @@ func (s *service) GetByID(
 ) (EmployeeSalaryResponse, error) {
 	salary, err := s.repo.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
-		return EmployeeSalaryResponse{}, err
+		return EmployeeSalaryResponse{}, mapRepositoryError(err)
 	}
 
 	return mapToResponse(*salary), nil
@@ -111,7 +111,7 @@ func (s *service) Update(
 
 	_, err = qtx.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
-		return EmployeeSalaryResponse{}, err
+		return EmployeeSalaryResponse{}, mapRepositoryError(err)
 	}
 
 	employeeID, err := uuid.Parse(req.EmployeeID)
@@ -132,7 +132,7 @@ func (s *service) Update(
 	}
 
 	if err := qtx.Create(ctx, newSalary); err != nil {
-		return EmployeeSalaryResponse{}, err
+		return EmployeeSalaryResponse{}, mapRepositoryError(err)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -155,7 +155,7 @@ func (s *service) Delete(
 	qtx := s.repo.WithTx(tx)
 
 	if err := qtx.Delete(ctx, companyID, id); err != nil {
-		return err
+		return mapRepositoryError(err)
 	}
 
 	return tx.Commit()
@@ -165,6 +165,7 @@ func mapToResponse(salary EmployeeSalary) EmployeeSalaryResponse {
 	return EmployeeSalaryResponse{
 		ID:            salary.ID.String(),
 		EmployeeID:    salary.EmployeeID.String(),
+		EmployeeName:  salary.EmployeeName,
 		BaseSalary:    salary.BaseSalary,
 		EffectiveDate: salary.EffectiveDate.Format("2006-01-02"),
 	}

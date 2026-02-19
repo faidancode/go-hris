@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"go-hris/internal/employeesalary"
+	employeesalaryerrors "go-hris/internal/employeesalary/errors"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -164,6 +166,26 @@ func TestEmployeeSalaryService_Create(t *testing.T) {
 		_, err := deps.service.Create(ctx, companyID, req)
 
 		assert.Error(t, err)
+		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
+	})
+
+	t.Run("duplicate employee salary effective date", func(t *testing.T) {
+		req := employeesalary.CreateEmployeeSalaryRequest{
+			EmployeeID:    employeeID.String(),
+			BaseSalary:    9000000,
+			EffectiveDate: "2026-02-01",
+		}
+
+		expectTx(t, deps.sqlMock, false)
+
+		deps.repo.createFn = func(ctx context.Context, salary *employeesalary.EmployeeSalary) error {
+			return &pgconn.PgError{Code: "23505", ConstraintName: "uq_employee_salary_effective"}
+		}
+
+		_, err := deps.service.Create(ctx, companyID, req)
+
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, employeesalaryerrors.ErrSalaryEffectiveDateAlreadyExists)
 		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
 	})
 }
