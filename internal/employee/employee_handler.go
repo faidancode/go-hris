@@ -9,26 +9,35 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type Handler struct {
 	service Service
+	logger  *zap.Logger
 }
 
-func NewHandler(service Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service Service, logger ...*zap.Logger) *Handler {
+	l := zap.L().Named("employee.handler")
+	if len(logger) > 0 && logger[0] != nil {
+		l = logger[0].Named("employee.handler")
+	}
+	return &Handler{service: service, logger: l}
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	companyID := c.GetString("company_id")
+	h.logger.Debug("http create employee", zap.String("company_id", companyID))
 	var req CreateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("http create employee validation failed", zap.Error(err))
 		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "Input tidak valid", err.Error())
 		return
 	}
 
 	resp, err := h.service.Create(c.Request.Context(), companyID, req)
 	if err != nil {
+		h.logger.Error("http create employee failed", zap.Error(err))
 		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
 		return
 	}
@@ -39,9 +48,11 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) GetAll(c *gin.Context) {
 	ctx := c.Request.Context()
 	companyID := c.GetString("company_id")
+	h.logger.Debug("http get all employees", zap.String("company_id", companyID))
 
 	resp, err := h.service.GetAll(ctx, companyID)
 	if err != nil {
+		h.logger.Error("http get all employees failed", zap.Error(err))
 		if errors.Is(err, errors.New("forbidden")) {
 			response.Error(c, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
 			return
@@ -109,9 +120,14 @@ func (h *Handler) GetById(c *gin.Context) {
 	ctx := c.Request.Context()
 	targetID := c.Param("id")
 	companyID := c.GetString("company_id")
+	h.logger.Debug("http get employee by id",
+		zap.String("company_id", companyID),
+		zap.String("employee_id", targetID),
+	)
 
 	resp, err := h.service.GetByID(ctx, companyID, targetID)
 	if err != nil {
+		h.logger.Error("http get employee by id failed", zap.Error(err))
 		if errors.Is(err, errors.New("forbidden")) {
 			response.Error(c, http.StatusForbidden, "FORBIDDEN", "forbidden", nil)
 			return
@@ -127,14 +143,20 @@ func (h *Handler) Update(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
 	companyID := c.GetString("company_id")
+	h.logger.Debug("http update employee",
+		zap.String("company_id", companyID),
+		zap.String("employee_id", id),
+	)
 	var req UpdateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("http update employee validation failed", zap.Error(err))
 		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "Input tidak valid", err.Error())
 		return
 	}
 
 	resp, err := h.service.Update(ctx, companyID, id, req)
 	if err != nil {
+		h.logger.Error("http update employee failed", zap.Error(err))
 		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
 		return
 	}
@@ -146,8 +168,13 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx := c.Request.Context()
 	id := c.Param("id")
 	companyID := c.GetString("company_id")
+	h.logger.Debug("http delete employee",
+		zap.String("company_id", companyID),
+		zap.String("employee_id", id),
+	)
 
 	if err := h.service.Delete(ctx, companyID, id); err != nil {
+		h.logger.Error("http delete employee failed", zap.Error(err))
 		response.Error(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
 		return
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 //go:generate mockgen -source=employee_service.go -destination=mock/employee_service_mock.go -package=mock
@@ -19,12 +20,17 @@ type Service interface {
 }
 
 type service struct {
-	db   *sql.DB
-	repo Repository
+	db     *sql.DB
+	repo   Repository
+	logger *zap.Logger
 }
 
-func NewService(db *sql.DB, repo Repository) Service {
-	return &service{db: db, repo: repo}
+func NewService(db *sql.DB, repo Repository, logger ...*zap.Logger) Service {
+	l := zap.L().Named("employee.service")
+	if len(logger) > 0 && logger[0] != nil {
+		l = logger[0].Named("employee.service")
+	}
+	return &service{db: db, repo: repo, logger: l}
 }
 
 func (s *service) Create(
@@ -32,9 +38,15 @@ func (s *service) Create(
 	companyID string,
 	req CreateEmployeeRequest,
 ) (EmployeeResponse, error) {
+	s.logger.Debug("create employee requested",
+		zap.String("company_id", companyID),
+		zap.String("position_id", req.PositionID),
+		zap.String("email", req.Email),
+	)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		s.logger.Error("create employee begin tx failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 	defer tx.Rollback()
@@ -42,47 +54,60 @@ func (s *service) Create(
 	qtx := s.repo.WithTx(tx)
 	departmentID, err := qtx.GetDepartmentIDByPosition(ctx, companyID, req.PositionID)
 	if err != nil {
+		s.logger.Error("create employee get department by position failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 	if departmentID == "" {
+		s.logger.Warn("create employee position not found in company",
+			zap.String("company_id", companyID),
+			zap.String("position_id", req.PositionID),
+		)
 		return EmployeeResponse{}, errors.New("position not found for this company")
 	}
 	hireDate, err := time.Parse("2006-01-02", req.HireDate)
 	if err != nil {
+		s.logger.Warn("create employee invalid hire_date",
+			zap.String("hire_date", req.HireDate),
+			zap.Error(err),
+		)
 		return EmployeeResponse{}, errors.New("invalid hire_date format, expected YYYY-MM-DD")
 	}
 
-	dept := &Employee{
-		ID:           uuid.New(),
-		FullName:     req.FullName,
-		Email:        req.Email,
-		CompanyID:    uuid.MustParse(companyID),
-		PositionID:   uuidPtr(req.PositionID),
-		DepartmentID: uuidPtr(departmentID),
-		EmployeeNumber: req.EmployeeNumber,
-		Phone: req.Phone,
-		HireDate: hireDate,
+	empl := &Employee{
+		ID:               uuid.New(),
+		FullName:         req.FullName,
+		Email:            req.Email,
+		CompanyID:        uuid.MustParse(companyID),
+		PositionID:       uuidPtr(req.PositionID),
+		DepartmentID:     uuidPtr(departmentID),
+		EmployeeNumber:   req.EmployeeNumber,
+		Phone:            req.Phone,
+		HireDate:         hireDate,
 		EmploymentStatus: req.EmploymentStatus,
 	}
 
-	if err := qtx.Create(ctx, dept); err != nil {
+	if err := qtx.Create(ctx, empl); err != nil {
+		s.logger.Error("create employee persist failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
+		s.logger.Error("create employee commit failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
+	s.logger.Info("create employee success", zap.String("employee_id", empl.ID.String()))
 
-	return mapToResponse(*dept), nil
+	return mapToResponse(*empl), nil
 }
 
 func (s *service) GetAll(
 	ctx context.Context,
 	companyID string,
 ) ([]EmployeeResponse, error) {
-
+	s.logger.Debug("get all employees requested", zap.String("company_id", companyID))
 	depts, err := s.repo.FindAllByCompany(ctx, companyID)
 	if err != nil {
+		s.logger.Error("get all employees failed", zap.Error(err))
 		return nil, err
 	}
 
@@ -93,13 +118,17 @@ func (s *service) GetByID(
 	ctx context.Context,
 	companyID, id string,
 ) (EmployeeResponse, error) {
-
-	dept, err := s.repo.FindByIDAndCompany(ctx, companyID, id)
+	s.logger.Debug("get employee by id requested",
+		zap.String("company_id", companyID),
+		zap.String("employee_id", id),
+	)
+	empl, err := s.repo.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
+		s.logger.Error("get employee by id failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 
-	return mapToResponse(*dept), nil
+	return mapToResponse(*empl), nil
 }
 
 func (s *service) Update(
@@ -107,9 +136,15 @@ func (s *service) Update(
 	companyID, id string,
 	req UpdateEmployeeRequest,
 ) (EmployeeResponse, error) {
+	s.logger.Debug("update employee requested",
+		zap.String("company_id", companyID),
+		zap.String("employee_id", id),
+		zap.String("position_id", req.PositionID),
+	)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		s.logger.Error("update employee begin tx failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 	defer tx.Rollback()
@@ -117,48 +152,66 @@ func (s *service) Update(
 	qtx := s.repo.WithTx(tx)
 	departmentID, err := qtx.GetDepartmentIDByPosition(ctx, companyID, req.PositionID)
 	if err != nil {
+		s.logger.Error("update employee get department by position failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 	if departmentID == "" {
+		s.logger.Warn("update employee position not found in company",
+			zap.String("company_id", companyID),
+			zap.String("position_id", req.PositionID),
+		)
 		return EmployeeResponse{}, errors.New("position not found for this company")
 	}
 	hireDate, err := time.Parse("2006-01-02", req.HireDate)
 	if err != nil {
+		s.logger.Warn("update employee invalid hire_date",
+			zap.String("hire_date", req.HireDate),
+			zap.Error(err),
+		)
 		return EmployeeResponse{}, errors.New("invalid hire_date format, expected YYYY-MM-DD")
 	}
 
-	dept, err := qtx.FindByIDAndCompany(ctx, companyID, id)
+	empl, err := qtx.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
+		s.logger.Error("update employee fetch existing failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 
-	dept.FullName = req.FullName
-	dept.Email = req.Email
-	dept.PositionID = uuidPtr(req.PositionID)
-	dept.DepartmentID = uuidPtr(departmentID)
-	dept.EmployeeNumber = req.EmployeeNumber
-	dept.Phone = req.Phone
-	dept.HireDate = hireDate
-	dept.EmploymentStatus = req.EmploymentStatus
+	empl.FullName = req.FullName
+	empl.Email = req.Email
+	empl.PositionID = uuidPtr(req.PositionID)
+	empl.DepartmentID = uuidPtr(departmentID)
+	empl.EmployeeNumber = req.EmployeeNumber
+	empl.Phone = req.Phone
+	empl.HireDate = hireDate
+	empl.EmploymentStatus = req.EmploymentStatus
 
-	if err := qtx.Update(ctx, dept); err != nil {
+	if err := qtx.Update(ctx, empl); err != nil {
+		s.logger.Error("update employee persist failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 
 	if err := tx.Commit(); err != nil {
+		s.logger.Error("update employee commit failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
+	s.logger.Info("update employee success", zap.String("employee_id", id))
 
-	return mapToResponse(*dept), nil
+	return mapToResponse(*empl), nil
 }
 
 func (s *service) Delete(
 	ctx context.Context,
 	companyID, id string,
 ) error {
+	s.logger.Debug("delete employee requested",
+		zap.String("company_id", companyID),
+		zap.String("employee_id", id),
+	)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		s.logger.Error("delete employee begin tx failed", zap.Error(err))
 		return err
 	}
 	defer tx.Rollback()
@@ -166,25 +219,44 @@ func (s *service) Delete(
 	qtx := s.repo.WithTx(tx)
 
 	if err := qtx.Delete(ctx, companyID, id); err != nil {
+		s.logger.Error("delete employee failed", zap.Error(err))
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		s.logger.Error("delete employee commit failed", zap.Error(err))
+		return err
+	}
+	s.logger.Info("delete employee success", zap.String("employee_id", id))
+	return nil
 }
 
-func mapToResponse(dept Employee) EmployeeResponse {
-	return EmployeeResponse{
-		ID:           dept.ID.String(),
-		FullName:     dept.FullName,
-		Email:        dept.Email,
-		EmployeeNumber: dept.EmployeeNumber,
-		Phone: dept.Phone,
-		HireDate: dept.HireDate.Format("2006-01-02"),
-		EmploymentStatus: dept.EmploymentStatus,
-		CompanyID:    dept.CompanyID.String(),
-		DepartmentID: uuidToString(dept.DepartmentID),
-		PositionID:   uuidToString(dept.PositionID),
+func mapToResponse(empl Employee) EmployeeResponse {
+	resp := EmployeeResponse{
+		ID:               empl.ID.String(),
+		FullName:         empl.FullName,
+		Email:            empl.Email,
+		EmployeeNumber:   empl.EmployeeNumber,
+		Phone:            empl.Phone,
+		HireDate:         empl.HireDate.Format("2006-01-02"),
+		EmploymentStatus: empl.EmploymentStatus,
+		CompanyID:        empl.CompanyID.String(),
+		DepartmentID:     uuidToString(empl.DepartmentID),
+		PositionID:       uuidToString(empl.PositionID),
 	}
+	if empl.Department != nil {
+		resp.Department = &EmployeeDepartmentResponse{
+			ID:   empl.Department.ID.String(),
+			Name: empl.Department.Name,
+		}
+	}
+	if empl.Position != nil {
+		resp.Position = &EmployeePositionResponse{
+			ID:   empl.Position.ID.String(),
+			Name: empl.Position.Name,
+		}
+	}
+	return resp
 }
 
 func mapToListResponse(depts []Employee) []EmployeeResponse {

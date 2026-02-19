@@ -50,6 +50,8 @@ func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]
 func (r *repository) FindByIDAndCompany(ctx context.Context, companyID string, id string) (*Employee, error) {
 	var dept Employee
 	err := r.db.WithContext(ctx).
+		Preload("Position").
+		Preload("Department").
 		Scopes(tenant.Scope(companyID)).
 		First(&dept, "id = ?", id).Error
 	return &dept, err
