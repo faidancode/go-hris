@@ -41,6 +41,13 @@ func BuildApp(router *gin.Engine) error {
 	}
 	log.Println("Redis connection established")
 
+	kafkaWriter, err := connection.ConnectKafkaWithRetry(os.Getenv("KAFKA_BROKER"), 5)
+	if err != nil {
+		return err
+	}
+	_ = kafkaWriter
+	log.Println("Kafka connection established")
+
 	// Register Modules & Routes
 	if err := registerModules(router, sqlDB, gormDB, redisClient); err != nil {
 		return err

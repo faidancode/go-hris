@@ -36,6 +36,76 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5    
+  # Kafka (KRaft Mode - No Zookeeper needed)
+  kafka:
+    image: apache/kafka:4.0.0
+    container_name: go_hris_kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # Unique identifier for this Kafka node in the cluster (must be unique per node)
+      - KAFKA_NODE_ID=1
+      
+      # Defines what roles this node performs: controller (manages metadata) and broker (handles data)
+      - KAFKA_PROCESS_ROLES=controller,broker
+      
+      # List of controller nodes for quorum voting: format is node_id@hostname:port
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      
+      # Network interfaces Kafka listens on: PLAINTEXT for clients (9092), CONTROLLER for internal control plane (9093)
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      
+      # Address that clients use to connect to this broker (must be reachable from client networks)
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      
+      # Maps listener names to security protocols (both using PLAINTEXT/no encryption here)
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      
+      # Specifies which listener name(s) the controller uses for internal communication
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      
+      # Listener name that brokers use to communicate with each other
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      
+      # Allows unencrypted connections (disable in production for security)
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      
+      # Directory where Kafka stores log segments and data files
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
+      
+      # Number of replicas for __consumer_offsets topic (set to 1 for single-node setup)
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      
+      # Number of replicas for transaction state log (set to 1 for single-node setup)
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      
+      # Minimum in-sync replicas for transaction log (set to 1 for single-node setup)
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      
+      # Unique cluster identifier for KRaft mode (generate with kafka-storage random-uuid)
+      - CLUSTER_ID=MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test:
+          [
+            "CMD-SHELL",
+            "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"
+          ]
+      interval: 10s
+      timeout: 10s
+      retries: 10       # Memberi kesempatan lebih banyak
+      start_period: 30s # Memberi waktu Kafka untuk 'pemanasan'
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: go_hris_kafka_ui
+    ports:
+      - "8080:8080"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local-cluster
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - DYNAMIC_CONFIG_ENABLED=true      
 
 
   # Aplikasi Go

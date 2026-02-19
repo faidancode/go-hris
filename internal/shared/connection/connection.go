@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -77,4 +78,24 @@ func ConnectRedisWithRetry(addr string, maxRetries int) (*redis.Client, error) {
 	}
 
 	return nil, fmt.Errorf("failed to connect redis")
+}
+
+func ConnectKafkaWithRetry(broker string, maxRetries int) (*kafka.Writer, error) {
+	for i := 1; i <= maxRetries; i++ {
+		writer := &kafka.Writer{
+			Addr: kafka.TCP(broker),
+		}
+
+		conn, err := kafka.Dial("tcp", broker)
+		if err == nil {
+			conn.Close()
+			log.Println("✅ Connected to Kafka")
+			return writer, nil
+		}
+
+		log.Printf("⚠️ Kafka retry %d/%d failed", i, maxRetries)
+		time.Sleep(5 * time.Second)
+	}
+
+	return nil, fmt.Errorf("failed to connect kafka")
 }

@@ -87,11 +87,11 @@ docker-stop:
 
 .PHONY: docker-infra
 docker-infra:
-	docker-compose up -d postgres redis
+	docker-compose up -d postgres redis kafka kafka-ui
 
 .PHONY: docker-infra-stop
 docker-infra-stop:
-	docker-compose stop postgres redis
+	docker-compose stop postgres redis kafka kafka-ui
 
 .PHONY: docker-logs
 docker-logs:
