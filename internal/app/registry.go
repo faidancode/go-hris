@@ -13,6 +13,7 @@ import (
 	"go-hris/internal/position"
 	"go-hris/internal/rbac"
 	"go-hris/internal/rbac/infra"
+	"go-hris/internal/rbac/rbac_http"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
@@ -77,9 +78,8 @@ func registerModules(
 		leave.RegisterRoutes(api, leaveHandler, rbacService)
 		payroll.RegisterRoutes(api, payrollHandler, rbacService, rdb)
 		position.RegisterRoutes(api, positionHandler, rbacService)
+		rbac_http.RegisterRoutes(api, rbacHandler, rbacService)
 	}
-
-	rbac.RegisterRoutes(router, rbacHandler)
 
 	return nil
 }

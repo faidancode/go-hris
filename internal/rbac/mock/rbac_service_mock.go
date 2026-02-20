@@ -10,7 +10,7 @@
 package mock
 
 import (
-	rbac "go-hris/internal/rbac"
+	domain "go-hris/internal/domain"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -40,8 +40,36 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
+// CreateRole mocks base method.
+func (m *MockService) CreateRole(companyID string, req domain.CreateRoleRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateRole", companyID, req)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateRole indicates an expected call of CreateRole.
+func (mr *MockServiceMockRecorder) CreateRole(companyID, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRole", reflect.TypeOf((*MockService)(nil).CreateRole), companyID, req)
+}
+
+// DeleteRole mocks base method.
+func (m *MockService) DeleteRole(id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRole", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRole indicates an expected call of DeleteRole.
+func (mr *MockServiceMockRecorder) DeleteRole(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRole", reflect.TypeOf((*MockService)(nil).DeleteRole), id)
+}
+
 // Enforce mocks base method.
-func (m *MockService) Enforce(req rbac.EnforceRequest) (bool, error) {
+func (m *MockService) Enforce(req domain.EnforceRequest) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Enforce", req)
 	ret0, _ := ret[0].(bool)
@@ -53,6 +81,66 @@ func (m *MockService) Enforce(req rbac.EnforceRequest) (bool, error) {
 func (mr *MockServiceMockRecorder) Enforce(req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Enforce", reflect.TypeOf((*MockService)(nil).Enforce), req)
+}
+
+// GetEmployeePermissions mocks base method.
+func (m *MockService) GetEmployeePermissions(employeeID, companyID string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEmployeePermissions", employeeID, companyID)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEmployeePermissions indicates an expected call of GetEmployeePermissions.
+func (mr *MockServiceMockRecorder) GetEmployeePermissions(employeeID, companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmployeePermissions", reflect.TypeOf((*MockService)(nil).GetEmployeePermissions), employeeID, companyID)
+}
+
+// GetRole mocks base method.
+func (m *MockService) GetRole(id string) (*domain.RoleResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRole", id)
+	ret0, _ := ret[0].(*domain.RoleResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRole indicates an expected call of GetRole.
+func (mr *MockServiceMockRecorder) GetRole(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRole", reflect.TypeOf((*MockService)(nil).GetRole), id)
+}
+
+// ListPermissions mocks base method.
+func (m *MockService) ListPermissions() ([]domain.PermissionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListPermissions")
+	ret0, _ := ret[0].([]domain.PermissionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListPermissions indicates an expected call of ListPermissions.
+func (mr *MockServiceMockRecorder) ListPermissions() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPermissions", reflect.TypeOf((*MockService)(nil).ListPermissions))
+}
+
+// ListRoles mocks base method.
+func (m *MockService) ListRoles(companyID string) ([]domain.RoleResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListRoles", companyID)
+	ret0, _ := ret[0].([]domain.RoleResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListRoles indicates an expected call of ListRoles.
+func (mr *MockServiceMockRecorder) ListRoles(companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListRoles", reflect.TypeOf((*MockService)(nil).ListRoles), companyID)
 }
 
 // LoadCompanyPolicy mocks base method.
@@ -67,4 +155,18 @@ func (m *MockService) LoadCompanyPolicy(companyID string) error {
 func (mr *MockServiceMockRecorder) LoadCompanyPolicy(companyID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadCompanyPolicy", reflect.TypeOf((*MockService)(nil).LoadCompanyPolicy), companyID)
+}
+
+// UpdateRole mocks base method.
+func (m *MockService) UpdateRole(id string, req domain.UpdateRoleRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRole", id, req)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRole indicates an expected call of UpdateRole.
+func (mr *MockServiceMockRecorder) UpdateRole(id, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRole", reflect.TypeOf((*MockService)(nil).UpdateRole), id, req)
 }

@@ -1,6 +1,7 @@
 package rbac
 
 import (
+	"go-hris/internal/domain"
 	"log"
 	"sync"
 
@@ -10,7 +11,17 @@ import (
 //go:generate mockgen -source=rbac_service.go -destination=mock/rbac_service_mock.go -package=mock
 type Service interface {
 	LoadCompanyPolicy(companyID string) error
-	Enforce(req EnforceRequest) (bool, error)
+	Enforce(req domain.EnforceRequest) (bool, error)
+	GetEmployeePermissions(employeeID, companyID string) ([]string, error)
+
+	// Management
+	ListRoles(companyID string) ([]domain.RoleResponse, error)
+	GetRole(id string) (*domain.RoleResponse, error)
+	CreateRole(companyID string, req domain.CreateRoleRequest) error
+	UpdateRole(id string, req domain.UpdateRoleRequest) error
+	DeleteRole(id string) error
+
+	ListPermissions() ([]domain.PermissionResponse, error)
 }
 
 type service struct {
@@ -76,7 +87,7 @@ func (s *service) loadCompanyPolicyUnlocked(companyID string) error {
 	return nil
 }
 
-func (s *service) Enforce(req EnforceRequest) (bool, error) {
+func (s *service) Enforce(req domain.EnforceRequest) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -100,4 +111,159 @@ func (s *service) Enforce(req EnforceRequest) (bool, error) {
 	}
 
 	return allowed, nil
+}
+func (s *service) GetEmployeePermissions(employeeID, companyID string) ([]string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.loadCompanyPolicyUnlocked(companyID); err != nil {
+		return nil, err
+	}
+
+	perms, err := s.enforcer.GetImplicitPermissionsForUser(employeeID, companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []string
+	for _, p := range perms {
+		// p format: [sub, dom, res, act]
+		// we want res:act
+		if len(p) >= 4 {
+			result = append(result, p[2]+":"+p[3])
+		}
+	}
+
+	return result, nil
+}
+
+func (s *service) ListRoles(companyID string) ([]domain.RoleResponse, error) {
+	roles, err := s.repo.ListRoles(companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []domain.RoleResponse
+	for _, r := range roles {
+		perms, _ := s.repo.GetPermissionsByRoleID(r.ID)
+		pList := []string{}
+		for _, p := range perms {
+			pList = append(pList, p.Resource+":"+p.Action)
+		}
+
+		result = append(result, domain.RoleResponse{
+			ID:          r.ID,
+			Name:        r.Name,
+			Description: r.Description,
+			Permissions: pList,
+		})
+	}
+	return result, nil
+}
+
+func (s *service) GetRole(id string) (*domain.RoleResponse, error) {
+	r, err := s.repo.GetRoleByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	perms, _ := s.repo.GetPermissionsByRoleID(r.ID)
+	pList := []string{}
+	for _, p := range perms {
+		pList = append(pList, p.Resource+":"+p.Action)
+	}
+
+	return &domain.RoleResponse{
+		ID:          r.ID,
+		Name:        r.Name,
+		Description: r.Description,
+		Permissions: pList,
+	}, nil
+}
+
+func (s *service) CreateRole(companyID string, req domain.CreateRoleRequest) error {
+	role := &RoleRow{
+		CompanyID:   companyID,
+		Name:        req.Name,
+		Description: req.Description,
+	}
+
+	if err := s.repo.CreateRole(role); err != nil {
+		return err
+	}
+
+	if len(req.Permissions) > 0 {
+		allPerms, _ := s.repo.ListPermissions()
+		var pIDs []string
+		for _, rawP := range req.Permissions {
+			for _, p := range allPerms {
+				if p.Resource+":"+p.Action == rawP {
+					pIDs = append(pIDs, p.ID)
+				}
+			}
+		}
+		if err := s.repo.UpdateRolePermissions(role.ID, pIDs); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *service) UpdateRole(id string, req domain.UpdateRoleRequest) error {
+	role, err := s.repo.GetRoleByID(id)
+	if err != nil {
+		return err
+	}
+
+	if req.Name != "" {
+		role.Name = req.Name
+	}
+	if req.Description != "" {
+		role.Description = req.Description
+	}
+
+	if err := s.repo.UpdateRole(role); err != nil {
+		return err
+	}
+
+	if req.Permissions != nil {
+		allPerms, _ := s.repo.ListPermissions()
+		var pIDs []string
+		for _, rawP := range req.Permissions {
+			for _, p := range allPerms {
+				if p.Resource+":"+p.Action == rawP {
+					pIDs = append(pIDs, p.ID)
+				}
+			}
+		}
+		if err := s.repo.UpdateRolePermissions(id, pIDs); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *service) DeleteRole(id string) error {
+	return s.repo.DeleteRole(id)
+}
+
+func (s *service) ListPermissions() ([]domain.PermissionResponse, error) {
+	perms, err := s.repo.ListPermissions()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []domain.PermissionResponse
+	for _, p := range perms {
+		result = append(result, domain.PermissionResponse{
+			ID:       p.ID,
+			Resource: p.Resource,
+			Action:   p.Action,
+			Label:    p.Label,
+			Category: p.Category,
+		})
+	}
+	return result, nil
 }

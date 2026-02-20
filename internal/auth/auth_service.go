@@ -73,13 +73,17 @@ func (s *service) Login(ctx context.Context, email, password string) (accessToke
 		time.Hour*24*7,
 	)
 
+	// 5. Get permissions
+	perms, _ := s.rbac.GetEmployeePermissions(user.EmployeeID.String(), user.CompanyID.String())
+
 	return accessToken, refreshToken, AuthResponse{
-		ID:         user.ID.String(),
-		CompanyID:  user.CompanyID.String(),
-		EmployeeID: user.EmployeeID.String(),
-		Email:      user.Email,
-		Name:       user.Name,
-		Role: role,
+		ID:          user.ID.String(),
+		CompanyID:   user.CompanyID.String(),
+		EmployeeID:  user.EmployeeID.String(),
+		Email:       user.Email,
+		Name:        user.Name,
+		Role:        role,
+		Permissions: perms,
 	}, nil
 }
 
@@ -142,12 +146,17 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (string
 		return "", "", AuthResponse{}, autherrors.ErrTokenGenerationFailed
 	}
 
+	// Get permissions
+	perms, _ := s.rbac.GetEmployeePermissions(user.EmployeeID.String(), user.CompanyID.String())
+
 	return newAccessToken, newRefreshToken, AuthResponse{
-		ID:        user.ID.String(),
-		CompanyID: user.CompanyID.String(),
-		Email:     user.Email,
-		Name:      user.Name,
-		Role:      role,
+		ID:          user.ID.String(),
+		CompanyID:   user.CompanyID.String(),
+		EmployeeID:  user.EmployeeID.String(),
+		Email:       user.Email,
+		Name:        user.Name,
+		Role:        role,
+		Permissions: perms,
 	}, nil
 }
 
@@ -162,13 +171,17 @@ func (s *service) GetMe(ctx context.Context, userID string) (*AuthResponse, erro
 		return nil, autherrors.ErrUserNotFound
 	}
 
+	// Get permissions
+	perms, _ := s.rbac.GetEmployeePermissions(u.EmployeeID.String(), u.CompanyID.String())
+
 	return &AuthResponse{
-		ID:         u.ID.String(),
-		Email:      u.Email,
-		Name:       u.Name,
-		Role:       u.Role,
-		EmployeeID: u.EmployeeID.String(),
-		CompanyID:  u.CompanyID.String(),
+		ID:          u.ID.String(),
+		Email:       u.Email,
+		Name:        u.Name,
+		Role:        u.Role,
+		EmployeeID:  u.EmployeeID.String(),
+		CompanyID:   u.CompanyID.String(),
+		Permissions: perms,
 	}, nil
 }
 
@@ -186,11 +199,8 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 	}
 
 	// 3. Pastikan employee exist & ambil data CompanyID
-	// Note: Jika di RegisterRequest tidak ada CompanyID, pastikan Repository
-	// memiliki method FindByID (tanpa filter company) atau gunakan companyID dari request jika ada.
 	employee, err := s.employeeRepo.FindByIDAndCompany(ctx, req.CompanyID, eID.String())
 	if err != nil {
-		// Jika tidak ditemukan atau company tidak cocok
 		return AuthResponse{}, employeeerrors.ErrEmployeeNotFound
 	}
 
@@ -198,7 +208,7 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 	user := &User{
 		ID:         uuid.New(),
 		EmployeeID: &eID,
-		CompanyID:  employee.CompanyID, // Mengambil CompanyID asli dari data Employee
+		CompanyID:  employee.CompanyID,
 		Email:      req.Email,
 		Name:       req.Name,
 		Password:   string(hashed),
@@ -226,11 +236,11 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 // reusable token generator
 func (s *service) generateToken(userID, employeeID, companyID, role string, expiry time.Duration) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id":    userID,
+		"user_id":     userID,
 		"employee_id": employeeID,
-		"company_id":  companyID, // Masukkan CompanyID ke dalam JWT agar bisa digunakan di middleware
-		"role":       role,
-		"exp":        time.Now().Add(expiry).Unix(),
+		"company_id":  companyID,
+		"role":        role,
+		"exp":         time.Now().Add(expiry).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

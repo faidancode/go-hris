@@ -14,10 +14,11 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-	ID         string `json:"id"`
-	CompanyID  string `json:"company_id"`
-	EmployeeID string `json:"employee_id"`
-	Email      string `json:"email"`
-	Name       string `json:"name"`
-	Role       string `json:"role"`
+	ID          string   `json:"id"`
+	CompanyID   string   `json:"company_id"`
+	EmployeeID  string   `json:"employee_id"`
+	Email       string   `json:"email"`
+	Name        string   `json:"name"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
 }

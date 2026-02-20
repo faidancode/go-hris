@@ -53,7 +53,11 @@ func TestService_Login(t *testing.T) {
 			// Setup EXPECT untuk RBAC
 		mockRBAC.EXPECT().
 			LoadCompanyPolicy(companyID.String()).
-			Return(nil) // penting! kalau tidak, panic seperti error tadi
+			Return(nil)
+
+		mockRBAC.EXPECT().
+			GetEmployeePermissions(employeeID.String(), companyID.String()).
+			Return([]string{"employee:read"}, nil)
 
 		token, refreshToken, resp, err := service.Login(ctx, mockUser.Email, password)
 
@@ -62,6 +66,7 @@ func TestService_Login(t *testing.T) {
 		assert.NotEmpty(t, refreshToken)
 		assert.Equal(t, mockUser.Email, resp.Email)
 		assert.Equal(t, companyID.String(), resp.CompanyID)
+		assert.Contains(t, resp.Permissions, "employee:read")
 	})
 
 	t.Run("Wrong Password", func(t *testing.T) {

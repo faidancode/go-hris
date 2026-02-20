@@ -386,6 +386,50 @@
       ]
     },
     {
+      "name": "Attendance",
+      "item": [
+        {
+          "name": "Get All Attendances",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/attendances"
+          }
+        },
+        {
+          "name": "Clock In",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/attendances/clock-in"
+          }
+        },
+        {
+          "name": "Clock Out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/attendances/clock-out"
+          }
+        }
+      ]
+    },
+    {
       "name": "Employee Salary",
       "item": [
         {
@@ -558,6 +602,71 @@
             ],
             "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}"
           }
+        },
+        {
+          "name": "Get Payroll Breakdown",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}/breakdown"
+          }
+        },
+        {
+          "name": "Download Payslip",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}/payslip/download"
+          }
+        },
+        {
+          "name": "Regenerate Payroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}/regenerate"
+          }
+        },
+        {
+          "name": "Approve Payroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}/approve"
+          }
+        },
+        {
+          "name": "Mark Payroll as Paid",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/payrolls/{{payroll_id}}/mark-paid"
+          }
         }
       ]
     },
@@ -644,6 +753,61 @@
             ],
             "url": "{{base_url}}/{{api_prefix}}/leaves/{{leave_id}}"
           }
+        },
+        {
+          "name": "Submit Leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/leaves/{{leave_id}}/submit"
+          }
+        },
+        {
+          "name": "Approve Leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approved_by\": \"{{employee_id}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/leaves/{{leave_id}}/approve"
+          }
+        },
+        {
+          "name": "Reject Leave",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approved_by\": \"{{employee_id}}\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/leaves/{{leave_id}}/reject"
+          }
         }
       ]
     },
@@ -664,28 +828,174 @@
               "mode": "raw",
               "raw": "{\n  \"employee_id\": \"{{employee_id}}\",\n  \"company_id\": \"{{company_id}}\",\n  \"resource\": \"department\",\n  \"action\": \"read\"\n}"
             },
-            "url": "{{base_url}}/rbac/enforce"
+            "url": "{{base_url}}/{{api_prefix}}/rbac/enforce"
+          }
+        },
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/rbac/roles"
+          }
+        },
+        {
+          "name": "Get Role By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/rbac/roles/{{role_id}}"
+          }
+        },
+        {
+          "name": "Create Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Manager\",\n  \"description\": \"Department Manager\",\n  \"permissions\": [\"employee:read\", \"employee:write\"]\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/rbac/roles"
+          }
+        },
+        {
+          "name": "Update Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Manager Updated\",\n  \"description\": \"Department Manager Updated\",\n  \"permissions\": [\"employee:read\", \"employee:write\", \"payroll:read\"]\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/rbac/roles/{{role_id}}"
+          }
+        },
+        {
+          "name": "Delete Role",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/rbac/roles/{{role_id}}"
+          }
+        },
+        {
+          "name": "List Permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/rbac/permissions"
           }
         }
       ]
     }
   ],
   "variable": [
-    { "key": "base_url", "value": "http://localhost:3000" },
-    { "key": "api_prefix", "value": "api/v1" },
-    { "key": "email", "value": "admin@example.com" },
-    { "key": "password", "value": "password123" },
-    { "key": "name", "value": "Admin User" },
-    { "key": "access_token", "value": "" },
-    { "key": "refresh_token", "value": "" },
-    { "key": "company_id", "value": "" },
-    { "key": "employee_id", "value": "" },
-    { "key": "department_id", "value": "" },
-    { "key": "position_id", "value": "" },
-    { "key": "employee_target_id", "value": "" },
-    { "key": "employee_salary_id", "value": "" },
-    { "key": "payroll_id", "value": "" },
-    { "key": "leave_id", "value": "" },
-    { "key": "idempotency_key", "value": "payroll-create-001" }
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "api_prefix",
+      "value": "api/v1"
+    },
+    {
+      "key": "email",
+      "value": "admin@example.com"
+    },
+    {
+      "key": "password",
+      "value": "password123"
+    },
+    {
+      "key": "name",
+      "value": "Admin User"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    },
+    {
+      "key": "company_id",
+      "value": ""
+    },
+    {
+      "key": "employee_id",
+      "value": ""
+    },
+    {
+      "key": "department_id",
+      "value": ""
+    },
+    {
+      "key": "position_id",
+      "value": ""
+    },
+    {
+      "key": "role_id",
+      "value": ""
+    },
+    {
+      "key": "employee_target_id",
+      "value": ""
+    },
+    {
+      "key": "employee_salary_id",
+      "value": ""
+    },
+    {
+      "key": "payroll_id",
+      "value": ""
+    },
+    {
+      "key": "leave_id",
+      "value": ""
+    },
+    {
+      "key": "idempotency_key",
+      "value": "payroll-create-001"
+    }
   ]
 }
