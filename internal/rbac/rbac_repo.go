@@ -1,9 +1,15 @@
 package rbac
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 //go:generate mockgen -source=rbac_repo.go -destination=mock/rbac_repo_mock.go -package=mock
 type Repository interface {
+	WithTx(tx *gorm.DB) Repository
+
 	GetEmployeeRoles(companyID string) ([]EmployeeRoleRow, error)
 	GetRolePermissions(companyID string) ([]RolePermissionRow, error)
 
@@ -33,8 +39,12 @@ type RoleRow struct {
 	CompanyID   string `gorm:"type:uuid"`
 	Name        string
 	Description string
-	CreatedAt   string
-	UpdatedAt   string
+	CreatedAt   time.Time `gorm:"autoCreateTime"`
+	UpdatedAt   time.Time `gorm:"autoUpdateTime"`
+}
+
+func (RoleRow) TableName() string {
+	return "roles"
 }
 
 type PermissionRow struct {
@@ -43,6 +53,10 @@ type PermissionRow struct {
 	Action   string
 	Label    string
 	Category string
+}
+
+func (PermissionRow) TableName() string {
+	return "permissions"
 }
 
 type EmployeeRoleRow struct {
@@ -54,6 +68,10 @@ type RolePermissionRow struct {
 	RoleID   string
 	Resource string
 	Action   string
+}
+
+func (r *repository) WithTx(tx *gorm.DB) Repository {
+	return &repository{db: tx}
 }
 
 func (r *repository) GetEmployeeRoles(companyID string) ([]EmployeeRoleRow, error) {

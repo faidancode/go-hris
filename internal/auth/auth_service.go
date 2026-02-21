@@ -279,6 +279,8 @@ func (s *service) generateToken(userID, employeeID, companyID, role string, expi
 	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
 }
 
+// auth/auth.service.go
+
 func (s *service) RegisterCompany(ctx context.Context, req RegisterCompanyRequest) (AuthResponse, error) {
 	// 1. Check if admin email already registered
 	_, err := s.repo.GetByEmail(ctx, req.AdminEmail)
@@ -299,28 +301,29 @@ func (s *service) RegisterCompany(ctx context.Context, req RegisterCompanyReques
 		Email:    req.CompanyEmail,
 		IsActive: true,
 	}
+
+	// Gunakan WithTx untuk repository terkait
 	txRepo := s.companyRepo.WithTx(tx)
 	if err := txRepo.Create(ctx, comp); err != nil {
 		return AuthResponse{}, err
 	}
 
-	// 4. Seed Default Roles (this creates SUPER_ADMIN, HR, EMPLOYEE)
-	if err := s.rbac.SeedDefaultRoles(comp.ID.String()); err != nil {
+	// 4. Seed Default Roles
+	// Pastikan s.rbac.WithTx(tx) mengembalikan service RBAC yang menggunakan transaksi tersebut
+	rbacTx := s.rbac.WithTx(tx)
+	if err := rbacTx.SeedDefaultRoles(comp.ID.String()); err != nil {
 		return AuthResponse{}, err
 	}
 
-	// 5. Create Employee for Admin (ADM prefix)
+	// 5. Create Employee
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-
 	adminEmployee := &employee.Employee{
 		ID:             uuid.New(),
 		CompanyID:      comp.ID,
 		FullName:       req.AdminName,
 		Email:          req.AdminEmail,
-		EmployeeNumber: fmt.Sprintf("ADM-%06d", 1), // First admin
+		EmployeeNumber: fmt.Sprintf("ADM-%06d", 1),
 		HireDate:       time.Now(),
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
 	}
 
 	if err := tx.Create(adminEmployee).Error; err != nil {
@@ -335,7 +338,7 @@ func (s *service) RegisterCompany(ctx context.Context, req RegisterCompanyReques
 		Name:       req.AdminName,
 		Email:      req.AdminEmail,
 		Password:   string(hashedPassword),
-		Role:       "SUPER_ADMIN",
+		Role:       "SUPERADMIN",
 		IsActive:   true,
 	}
 
@@ -343,13 +346,14 @@ func (s *service) RegisterCompany(ctx context.Context, req RegisterCompanyReques
 		return AuthResponse{}, err
 	}
 
-	// 7. Assign SUPER_ADMIN role in RBAC
-	saRole, err := s.rbac.GetRoleByName(comp.ID.String(), "SUPER_ADMIN")
+	// 7. Assign SUPERADMIN role
+	// PENTING: Gunakan rbacTx (bukan s.rbac) agar bisa membaca data yang belum di-commit
+	saRole, err := rbacTx.GetRoleByName(comp.ID.String(), "SUPERADMIN")
 	if err != nil {
-		return AuthResponse{}, err
+		return AuthResponse{}, err // Error "record not found" terjadi di sini sebelumnya
 	}
 
-	if err := s.rbac.AssignRoleIDToEmployee(adminEmployee.ID.String(), saRole.ID); err != nil {
+	if err := rbacTx.AssignRoleIDToEmployee(adminEmployee.ID.String(), saRole.ID); err != nil {
 		return AuthResponse{}, err
 	}
 

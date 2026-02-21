@@ -11,9 +11,11 @@ package mock
 
 import (
 	domain "go-hris/internal/domain"
+	rbac "go-hris/internal/rbac"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
+	gorm "gorm.io/gorm"
 )
 
 // MockService is a mock of Service interface.
@@ -226,4 +228,18 @@ func (m *MockService) UpdateRole(id string, req domain.UpdateRoleRequest) error 
 func (mr *MockServiceMockRecorder) UpdateRole(id, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRole", reflect.TypeOf((*MockService)(nil).UpdateRole), id, req)
+}
+
+// WithTx mocks base method.
+func (m *MockService) WithTx(tx *gorm.DB) rbac.Service {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithTx", tx)
+	ret0, _ := ret[0].(rbac.Service)
+	return ret0
+}
+
+// WithTx indicates an expected call of WithTx.
+func (mr *MockServiceMockRecorder) WithTx(tx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithTx", reflect.TypeOf((*MockService)(nil).WithTx), tx)
 }

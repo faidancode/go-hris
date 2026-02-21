@@ -6,10 +6,13 @@ import (
 	"sync"
 
 	"github.com/casbin/casbin/v2"
+	"gorm.io/gorm"
 )
 
 //go:generate mockgen -source=rbac_service.go -destination=mock/rbac_service_mock.go -package=mock
 type Service interface {
+	WithTx(tx *gorm.DB) Service
+
 	LoadCompanyPolicy(companyID string) error
 	Enforce(req domain.EnforceRequest) (bool, error)
 	GetEmployeePermissions(employeeID, companyID string) ([]string, error)
@@ -38,6 +41,13 @@ func NewService(repo Repository, enforcer *casbin.Enforcer) Service {
 	return &service{
 		repo:     repo,
 		enforcer: enforcer,
+	}
+}
+
+func (s *service) WithTx(tx *gorm.DB) Service {
+	return &service{
+		repo:     s.repo.WithTx(tx),
+		enforcer: s.enforcer,
 	}
 }
 
@@ -324,7 +334,7 @@ func (s *service) SeedDefaultRoles(companyID string) error {
 		Description string
 		Resources   []string // if empty, full access
 	}{
-		{"SUPER_ADMIN", "Full access to all modules and settings", nil},
+		{"SUPERADMIN", "Full access to all modules and settings", nil},
 		{"HR", "Manage employees, departments, and attendance", []string{"employee", "department", "position", "attendance", "leave"}},
 		{"EMPLOYEE", "Personal access for self-service", []string{"employee:read", "payroll:read", "leave:read", "leave:create"}},
 	}

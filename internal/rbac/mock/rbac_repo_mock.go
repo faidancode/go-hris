@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
+	gorm "gorm.io/gorm"
 )
 
 // MockRepository is a mock of Repository interface.
@@ -199,4 +200,18 @@ func (m *MockRepository) UpdateRolePermissions(roleID string, permIDs []string) 
 func (mr *MockRepositoryMockRecorder) UpdateRolePermissions(roleID, permIDs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRolePermissions", reflect.TypeOf((*MockRepository)(nil).UpdateRolePermissions), roleID, permIDs)
+}
+
+// WithTx mocks base method.
+func (m *MockRepository) WithTx(tx *gorm.DB) rbac.Repository {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WithTx", tx)
+	ret0, _ := ret[0].(rbac.Repository)
+	return ret0
+}
+
+// WithTx indicates an expected call of WithTx.
+func (mr *MockRepositoryMockRecorder) WithTx(tx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WithTx", reflect.TypeOf((*MockRepository)(nil).WithTx), tx)
 }

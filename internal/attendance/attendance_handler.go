@@ -106,7 +106,7 @@ func (h *Handler) GetAll(c *gin.Context) {
 
 func isPrivilegedRole(role string) bool {
 	switch role {
-	case "SUPER_ADMIN", "ADMIN", "HR", "MANAGER":
+	case "SUPERADMIN", "ADMIN", "HR", "MANAGER":
 		return true
 	default:
 		return false
