@@ -2,10 +2,12 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
 	autherrors "go-hris/internal/auth/errors"
+	"go-hris/internal/company"
 	"go-hris/internal/employee"
 	employeeerrors "go-hris/internal/employee/errors"
 	"go-hris/internal/rbac"
@@ -24,16 +26,19 @@ type Service interface {
 	GetMe(ctx context.Context, userID string) (*AuthResponse, error)
 
 	Register(ctx context.Context, req RegisterRequest) (AuthResponse, error)
+
+	RegisterCompany(ctx context.Context, req RegisterCompanyRequest) (AuthResponse, error)
 }
 
 type service struct {
 	repo         Repository
 	rbac         rbac.Service
 	employeeRepo employee.Repository
+	companyRepo  company.Repository
 }
 
-func NewService(repo Repository, rbac rbac.Service, employeeRepo employee.Repository) Service {
-	return &service{repo: repo, rbac: rbac, employeeRepo: employeeRepo}
+func NewService(repo Repository, rbac rbac.Service, employeeRepo employee.Repository, companyRepo company.Repository) Service {
+	return &service{repo: repo, rbac: rbac, employeeRepo: employeeRepo, companyRepo: companyRepo}
 }
 
 func (s *service) Login(ctx context.Context, email, password string) (accessToken, refreshToken string, resp AuthResponse, err error) {
@@ -205,6 +210,27 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 	}
 
 	// 4. Buat objek User menggunakan data dari Employee yang ditemukan
+	var roleName string
+	var finalRoleID string
+
+	if req.RoleID != "" {
+		// Lookup role by ID to get Name for denormalization
+		r, err := s.rbac.GetRole(req.RoleID)
+		if err != nil {
+			return AuthResponse{}, err
+		}
+		roleName = r.Name
+		finalRoleID = req.RoleID
+	} else {
+		// Default to "Employee" role
+		r, err := s.rbac.GetRoleByName(employee.CompanyID.String(), "Employee")
+		if err != nil {
+			return AuthResponse{}, err
+		}
+		roleName = r.Name
+		finalRoleID = r.ID
+	}
+
 	user := &User{
 		ID:         uuid.New(),
 		EmployeeID: &eID,
@@ -212,6 +238,7 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		Email:      req.Email,
 		Name:       req.Name,
 		Password:   string(hashed),
+		Role:       roleName,
 		IsActive:   true,
 	}
 
@@ -219,7 +246,12 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		return AuthResponse{}, autherrors.ErrEmailAlreadyRegistered
 	}
 
-	// 5. Load policy untuk company agar bisa enforce
+	// 5. Assign role in RBAC (employee_roles table)
+	if err := s.rbac.AssignRoleIDToEmployee(eID.String(), finalRoleID); err != nil {
+		return AuthResponse{}, err
+	}
+
+	// 6. Load policy untuk company agar bisa enforce
 	if err := s.rbac.LoadCompanyPolicy(employee.CompanyID.String()); err != nil {
 		return AuthResponse{}, err
 	}
@@ -229,7 +261,7 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (AuthRespon
 		CompanyID: user.CompanyID.String(),
 		Email:     user.Email,
 		Name:      user.Name,
-		Role:      "Employee",
+		Role:      roleName,
 	}, nil
 }
 
@@ -245,4 +277,91 @@ func (s *service) generateToken(userID, employeeID, companyID, role string, expi
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+}
+
+func (s *service) RegisterCompany(ctx context.Context, req RegisterCompanyRequest) (AuthResponse, error) {
+	// 1. Check if admin email already registered
+	_, err := s.repo.GetByEmail(ctx, req.AdminEmail)
+	if err == nil {
+		return AuthResponse{}, autherrors.ErrEmailAlreadyRegistered
+	}
+
+	// 2. Start Transaction
+	tx := s.repo.(*repository).db.Begin()
+	if tx.Error != nil {
+		return AuthResponse{}, tx.Error
+	}
+	defer tx.Rollback()
+
+	// 3. Create Company
+	comp := &company.Company{
+		Name:     req.CompanyName,
+		Email:    req.CompanyEmail,
+		IsActive: true,
+	}
+	txRepo := s.companyRepo.WithTx(tx)
+	if err := txRepo.Create(ctx, comp); err != nil {
+		return AuthResponse{}, err
+	}
+
+	// 4. Seed Default Roles (this creates SUPER_ADMIN, HR, EMPLOYEE)
+	if err := s.rbac.SeedDefaultRoles(comp.ID.String()); err != nil {
+		return AuthResponse{}, err
+	}
+
+	// 5. Create Employee for Admin (ADM prefix)
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+
+	adminEmployee := &employee.Employee{
+		ID:             uuid.New(),
+		CompanyID:      comp.ID,
+		FullName:       req.AdminName,
+		Email:          req.AdminEmail,
+		EmployeeNumber: fmt.Sprintf("ADM-%06d", 1), // First admin
+		HireDate:       time.Now(),
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	if err := tx.Create(adminEmployee).Error; err != nil {
+		return AuthResponse{}, err
+	}
+
+	// 6. Create User
+	user := &User{
+		ID:         uuid.New(),
+		CompanyID:  comp.ID,
+		EmployeeID: &adminEmployee.ID,
+		Name:       req.AdminName,
+		Email:      req.AdminEmail,
+		Password:   string(hashedPassword),
+		Role:       "SUPER_ADMIN",
+		IsActive:   true,
+	}
+
+	if err := tx.Create(user).Error; err != nil {
+		return AuthResponse{}, err
+	}
+
+	// 7. Assign SUPER_ADMIN role in RBAC
+	saRole, err := s.rbac.GetRoleByName(comp.ID.String(), "SUPER_ADMIN")
+	if err != nil {
+		return AuthResponse{}, err
+	}
+
+	if err := s.rbac.AssignRoleIDToEmployee(adminEmployee.ID.String(), saRole.ID); err != nil {
+		return AuthResponse{}, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return AuthResponse{}, err
+	}
+
+	return AuthResponse{
+		ID:        user.ID.String(),
+		CompanyID: user.CompanyID.String(),
+		Name:      user.Name,
+		Email:     user.Email,
+		Role:      user.Role,
+	}, nil
 }

@@ -13,15 +13,19 @@ type Service interface {
 	LoadCompanyPolicy(companyID string) error
 	Enforce(req domain.EnforceRequest) (bool, error)
 	GetEmployeePermissions(employeeID, companyID string) ([]string, error)
+	AssignRoleToEmployee(companyID, employeeID, roleName string) error
+	AssignRoleIDToEmployee(employeeID, roleID string) error
 
 	// Management
 	ListRoles(companyID string) ([]domain.RoleResponse, error)
 	GetRole(id string) (*domain.RoleResponse, error)
+	GetRoleByName(companyID, name string) (*domain.RoleResponse, error)
 	CreateRole(companyID string, req domain.CreateRoleRequest) error
 	UpdateRole(id string, req domain.UpdateRoleRequest) error
 	DeleteRole(id string) error
 
 	ListPermissions() ([]domain.PermissionResponse, error)
+	SeedDefaultRoles(companyID string) error
 }
 
 type service struct {
@@ -181,6 +185,26 @@ func (s *service) GetRole(id string) (*domain.RoleResponse, error) {
 	}, nil
 }
 
+func (s *service) GetRoleByName(companyID, name string) (*domain.RoleResponse, error) {
+	r, err := s.repo.GetRoleByName(companyID, name)
+	if err != nil {
+		return nil, err
+	}
+
+	perms, _ := s.repo.GetPermissionsByRoleID(r.ID)
+	pList := []string{}
+	for _, p := range perms {
+		pList = append(pList, p.Resource+":"+p.Action)
+	}
+
+	return &domain.RoleResponse{
+		ID:          r.ID,
+		Name:        r.Name,
+		Description: r.Description,
+		Permissions: pList,
+	}, nil
+}
+
 func (s *service) CreateRole(companyID string, req domain.CreateRoleRequest) error {
 	role := &RoleRow{
 		CompanyID:   companyID,
@@ -266,4 +290,83 @@ func (s *service) ListPermissions() ([]domain.PermissionResponse, error) {
 		})
 	}
 	return result, nil
+}
+func (s *service) AssignRoleToEmployee(companyID, employeeID, roleName string) error {
+	role, err := s.repo.GetRoleByName(companyID, roleName)
+	if err != nil {
+		return err
+	}
+
+	// Insert into employee_roles
+	err = s.repo.(*repository).db.Exec(
+		"INSERT INTO employee_roles (employee_id, role_id, created_at) VALUES (?, ?, now()) ON CONFLICT (employee_id, role_id) DO NOTHING",
+		employeeID,
+		role.ID,
+	).Error
+
+	return err
+}
+
+func (s *service) AssignRoleIDToEmployee(employeeID, roleID string) error {
+	// Insert into employee_roles
+	err := s.repo.(*repository).db.Exec(
+		"INSERT INTO employee_roles (employee_id, role_id, created_at) VALUES (?, ?, now()) ON CONFLICT (employee_id, role_id) DO NOTHING",
+		employeeID,
+		roleID,
+	).Error
+
+	return err
+}
+func (s *service) SeedDefaultRoles(companyID string) error {
+	// 1. Define default roles
+	defaultRoles := []struct {
+		Name        string
+		Description string
+		Resources   []string // if empty, full access
+	}{
+		{"SUPER_ADMIN", "Full access to all modules and settings", nil},
+		{"HR", "Manage employees, departments, and attendance", []string{"employee", "department", "position", "attendance", "leave"}},
+		{"EMPLOYEE", "Personal access for self-service", []string{"employee:read", "payroll:read", "leave:read", "leave:create"}},
+	}
+
+	allPerms, err := s.repo.ListPermissions()
+	if err != nil {
+		return err
+	}
+
+	for _, dr := range defaultRoles {
+		role := &RoleRow{
+			CompanyID:   companyID,
+			Name:        dr.Name,
+			Description: dr.Description,
+		}
+
+		if err := s.repo.CreateRole(role); err != nil {
+			return err
+		}
+
+		var filteredPermIDs []string
+		for _, p := range allPerms {
+			if dr.Resources == nil {
+				// Full access
+				filteredPermIDs = append(filteredPermIDs, p.ID)
+			} else {
+				for _, res := range dr.Resources {
+					// Match resource:action or just resource
+					if p.Resource+":"+p.Action == res || p.Resource == res {
+						filteredPermIDs = append(filteredPermIDs, p.ID)
+						break
+					}
+				}
+			}
+		}
+
+		if len(filteredPermIDs) > 0 {
+			if err := s.repo.UpdateRolePermissions(role.ID, filteredPermIDs); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

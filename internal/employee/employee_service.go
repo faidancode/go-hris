@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go-hris/internal/events"
 	"go-hris/internal/messaging/kafka"
+	"go-hris/internal/shared/counter"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,19 +25,21 @@ type Service interface {
 }
 
 type service struct {
-	db     *sql.DB
-	repo   Repository
-	outbox kafka.OutboxRepository
-	logger *zap.Logger
+	db      *sql.DB
+	repo    Repository
+	counter counter.Repository
+	outbox  kafka.OutboxRepository
+	logger  *zap.Logger
 }
 
-func NewService(db *sql.DB, repo Repository, logger ...*zap.Logger) Service {
-	return NewServiceWithOutbox(db, repo, nil, logger...)
+func NewService(db *sql.DB, repo Repository, counter counter.Repository, logger ...*zap.Logger) Service {
+	return NewServiceWithOutbox(db, repo, counter, nil, logger...)
 }
 
 func NewServiceWithOutbox(
 	db *sql.DB,
 	repo Repository,
+	counter counter.Repository,
 	outboxRepo kafka.OutboxRepository,
 	logger ...*zap.Logger,
 ) Service {
@@ -43,7 +47,7 @@ func NewServiceWithOutbox(
 	if len(logger) > 0 && logger[0] != nil {
 		l = logger[0].Named("employee.service")
 	}
-	return &service{db: db, repo: repo, outbox: outboxRepo, logger: l}
+	return &service{db: db, repo: repo, counter: counter, outbox: outboxRepo, logger: l}
 }
 
 func (s *service) Create(
@@ -84,6 +88,16 @@ func (s *service) Create(
 			zap.Error(err),
 		)
 		return EmployeeResponse{}, errors.New("invalid hire_date format, expected YYYY-MM-DD")
+	}
+
+	if req.EmployeeNumber == "" {
+		nextVal, err := s.counter.GetNextValue(ctx, companyID, "employee_number")
+		if err != nil {
+			s.logger.Error("create employee generate number failed", zap.Error(err))
+			return EmployeeResponse{}, err
+		}
+		emplNumber := fmt.Sprintf("EMP-%06d", nextVal)
+		req.EmployeeNumber = emplNumber
 	}
 
 	empl := &Employee{

@@ -3,7 +3,7 @@ package employee
 type CreateEmployeeRequest struct {
 	FullName         string `json:"full_name" binding:"required"`
 	Email            string `json:"email" binding:"required,email"`
-	EmployeeNumber   string `json:"employee_number" binding:"required"`
+	EmployeeNumber   string `json:"employee_number"`
 	Phone            string `json:"phone"`
 	HireDate         string `json:"hire_date" binding:"required"`
 	EmploymentStatus string `json:"employment_status" binding:"required"`

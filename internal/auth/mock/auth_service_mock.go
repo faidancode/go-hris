@@ -104,3 +104,18 @@ func (mr *MockServiceMockRecorder) Register(ctx, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockService)(nil).Register), ctx, req)
 }
+
+// RegisterCompany mocks base method.
+func (m *MockService) RegisterCompany(ctx context.Context, req auth.RegisterCompanyRequest) (auth.AuthResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterCompany", ctx, req)
+	ret0, _ := ret[0].(auth.AuthResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RegisterCompany indicates an expected call of RegisterCompany.
+func (mr *MockServiceMockRecorder) RegisterCompany(ctx, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterCompany", reflect.TypeOf((*MockService)(nil).RegisterCompany), ctx, req)
+}

@@ -137,6 +137,22 @@ func (ctrl *Handler) Register(c *gin.Context) {
 	response.Success(c, http.StatusCreated, res, nil)
 }
 
+func (ctrl *Handler) RegisterCompany(c *gin.Context) {
+	var req RegisterCompanyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "VALIDATION_ERROR", "Input tidak valid", err.Error())
+		return
+	}
+
+	res, err := ctrl.service.RegisterCompany(c.Request.Context(), req)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "REGISTER_FAILED", err.Error(), nil)
+		return
+	}
+
+	response.Success(c, http.StatusCreated, res, nil)
+}
+
 func (ctrl *Handler) RefreshToken(c *gin.Context) {
 	// 1. Deteksi Client
 	clientHeader := c.GetHeader("X-Client-Type")

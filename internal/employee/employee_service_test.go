@@ -11,6 +11,7 @@ import (
 	"go-hris/internal/shared/apperror"
 
 	employeeMock "go-hris/internal/employee/mock"
+	counterMock "go-hris/internal/shared/counter/mock"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
@@ -24,6 +25,7 @@ type serviceDeps struct {
 	sqlMock sqlmock.Sqlmock
 	service employee.Service
 	repo    *employeeMock.MockRepository
+	counter *counterMock.MockRepository
 }
 
 func setupServiceTest(t *testing.T) *serviceDeps {
@@ -31,14 +33,16 @@ func setupServiceTest(t *testing.T) *serviceDeps {
 
 	db, sqlMock, _ := sqlmock.New()
 	repo := employeeMock.NewMockRepository(ctrl)
+	counterRepo := counterMock.NewMockRepository(ctrl)
 
-	svc := employee.NewService(db, repo)
+	svc := employee.NewService(db, repo, counterRepo)
 
 	return &serviceDeps{
 		db:      db,
 		sqlMock: sqlMock,
 		service: svc,
 		repo:    repo,
+		counter: counterRepo,
 	}
 }
 
@@ -58,8 +62,16 @@ func TestEmployeeService_Create(t *testing.T) {
 	ctx := context.Background()
 	companyID := uuid.New().String()
 
-	t.Run("success", func(t *testing.T) {
-		req := employee.CreateEmployeeRequest{FullName: "HR", Email: "hr@example.com", EmployeeNumber: "EMP-100", Phone: "0812", HireDate: "2026-01-01", EmploymentStatus: "active", PositionID: uuid.New().String()}
+	t.Run("success - auto generate employee number", func(t *testing.T) {
+		req := employee.CreateEmployeeRequest{
+			FullName:         "HR",
+			Email:            "hr@example.com",
+			EmployeeNumber:   "", // Empty for auto-generation
+			Phone:            "0812",
+			HireDate:         "2026-01-01",
+			EmploymentStatus: "active",
+			PositionID:       uuid.New().String(),
+		}
 		deptID := uuid.New()
 		departmentID := uuid.New().String()
 
@@ -73,10 +85,15 @@ func TestEmployeeService_Create(t *testing.T) {
 			GetDepartmentIDByPosition(ctx, companyID, req.PositionID).
 			Return(departmentID, nil)
 
+		deps.counter.EXPECT().
+			GetNextValue(ctx, companyID, "employee_number").
+			Return(int64(123), nil)
+
 		deps.repo.EXPECT().
 			Create(ctx, gomock.Any()).
 			DoAndReturn(func(ctx context.Context, d *employee.Employee) error {
 				assert.Equal(t, req.FullName, d.FullName)
+				assert.Equal(t, "EMP-000123", d.EmployeeNumber)
 				assert.Equal(t, companyID, d.CompanyID.String())
 				assert.Equal(t, req.Email, d.Email)
 				d.ID = deptID
@@ -87,7 +104,7 @@ func TestEmployeeService_Create(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, deptID.String(), resp.ID)
-		assert.Equal(t, req.FullName, resp.FullName)
+		assert.Equal(t, "EMP-000123", resp.EmployeeNumber)
 	})
 
 	t.Run("repo error -> rollback", func(t *testing.T) {

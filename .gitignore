@@ -45,3 +45,5 @@ go.sum
 # internal/db/*.go
 
 /reference/*
+/plan/*
+/walkthrough/*

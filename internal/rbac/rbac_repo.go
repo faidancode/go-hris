@@ -10,6 +10,7 @@ type Repository interface {
 	// Management
 	ListRoles(companyID string) ([]RoleRow, error)
 	GetRoleByID(id string) (*RoleRow, error)
+	GetRoleByName(companyID, name string) (*RoleRow, error)
 	CreateRole(role *RoleRow) error
 	UpdateRole(role *RoleRow) error
 	DeleteRole(id string) error
@@ -90,6 +91,15 @@ func (r *repository) ListRoles(companyID string) ([]RoleRow, error) {
 func (r *repository) GetRoleByID(id string) (*RoleRow, error) {
 	var result RoleRow
 	err := r.db.First(&result, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (r *repository) GetRoleByName(companyID, name string) (*RoleRow, error) {
+	var result RoleRow
+	err := r.db.Where("company_id = ? AND name = ?", companyID, name).First(&result).Error
 	if err != nil {
 		return nil, err
 	}

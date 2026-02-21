@@ -6,6 +6,8 @@ import (
 	"go-hris/internal/auth"
 	autherrors "go-hris/internal/auth/errors"
 	authMock "go-hris/internal/auth/mock"
+	companyMock "go-hris/internal/company/mock"
+	"go-hris/internal/domain"
 	"go-hris/internal/employee"
 	employeeerrors "go-hris/internal/employee/errors"
 	employeeMock "go-hris/internal/employee/mock"
@@ -25,8 +27,9 @@ func TestService_Login(t *testing.T) {
 	mockRepo := authMock.NewMockRepository(ctrl)
 	mockRBAC := rbacMock.NewMockService(ctrl)
 	mockEmployeeRepo := employeeMock.NewMockRepository(ctrl)
+	mockCompanyRepo := companyMock.NewMockRepository(ctrl)
 
-	service := auth.NewService(mockRepo, mockRBAC, mockEmployeeRepo)
+	service := auth.NewService(mockRepo, mockRBAC, mockEmployeeRepo, mockCompanyRepo)
 	ctx := context.Background()
 
 	password := "password123"
@@ -87,7 +90,8 @@ func TestService_Register(t *testing.T) {
 	mockRepo := authMock.NewMockRepository(ctrl)
 	mockRBAC := rbacMock.NewMockService(ctrl)
 	mockEmployeeRepo := employeeMock.NewMockRepository(ctrl)
-	service := auth.NewService(mockRepo, mockRBAC, mockEmployeeRepo)
+	mockCompanyRepo := companyMock.NewMockRepository(ctrl)
+	service := auth.NewService(mockRepo, mockRBAC, mockEmployeeRepo, mockCompanyRepo)
 	ctx := context.Background()
 
 	t.Run("Success Register", func(t *testing.T) {
@@ -102,7 +106,7 @@ func TestService_Register(t *testing.T) {
 			Password:   "password123",
 		}
 
-		// Mock Find Employee: Sesuaikan parameter ID menjadi string sesuai logic service
+		// Mock Find Employee
 		mockEmployeeRepo.EXPECT().
 			FindByIDAndCompany(ctx, req.CompanyID, req.EmployeeID).
 			Return(&employee.Employee{
@@ -111,8 +115,20 @@ func TestService_Register(t *testing.T) {
 				FullName:  "John Doe",
 			}, nil)
 
+		// Mock RBAC: Get default role "Employee"
+		mockRBAC.EXPECT().
+			GetRoleByName(cID.String(), "Employee").
+			Return(&domain.RoleResponse{
+				ID:   uuid.New().String(),
+				Name: "Employee",
+			}, nil)
+
 		mockRepo.EXPECT().
 			Create(ctx, gomock.Any()).
+			Return(nil)
+
+		mockRBAC.EXPECT().
+			AssignRoleIDToEmployee(eID.String(), gomock.Any()).
 			Return(nil)
 
 		mockRBAC.EXPECT().
@@ -160,6 +176,14 @@ func TestService_Register(t *testing.T) {
 		mockEmployeeRepo.EXPECT().
 			FindByIDAndCompany(ctx, req.CompanyID, req.EmployeeID).
 			Return(&employee.Employee{ID: eID, CompanyID: cID}, nil)
+
+		// Mock RBAC: Get default role "Employee"
+		mockRBAC.EXPECT().
+			GetRoleByName(cID.String(), "Employee").
+			Return(&domain.RoleResponse{
+				ID:   uuid.New().String(),
+				Name: "Employee",
+			}, nil)
 
 		mockRepo.EXPECT().
 			Create(ctx, gomock.Any()).

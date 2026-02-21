@@ -27,6 +27,23 @@
           }
         },
         {
+          "name": "Register as Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": \"{{company_id}}\",\n  \"employee_id\": \"{{employee_id}}\",\n  \"email\": \"admin@demo.com\",\n  \"name\": \"Admin User\",\n  \"password\": \"password\",\n  \"role\": \"Admin\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/auth/register"
+          }
+        },
+        {
           "name": "Login",
           "event": [
             {

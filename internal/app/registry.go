@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"go-hris/internal/attendance"
 	"go-hris/internal/auth"
+	"go-hris/internal/company"
 	"go-hris/internal/department"
 	"go-hris/internal/employee"
 	"go-hris/internal/employeesalary"
@@ -14,6 +15,7 @@ import (
 	"go-hris/internal/rbac"
 	"go-hris/internal/rbac/infra"
 	"go-hris/internal/rbac/rbac_http"
+	"go-hris/internal/shared/counter"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +40,8 @@ func registerModules(
 	outboxRepo := kafka.NewOutboxRepository(db)
 	payrollRepo := payroll.NewRepository(gormDB)
 	positionRepo := position.NewRepository(gormDB)
+	counterRepo := counter.NewRepository(gormDB)
+	companyRepo := company.NewRepository(gormDB)
 
 	// --- RBAC Core ---
 	enforcer, err := infra.NewEnforcer(filepath.Join("internal", "rbac", "infra", "model.conf"))
@@ -47,16 +51,18 @@ func registerModules(
 	rbacService := rbac.NewService(rbacRepo, enforcer)
 
 	// --- Services ---
-	authService := auth.NewService(authRepo, rbacService, employeeRepo)
+	companyService := company.NewService(companyRepo)
+	authService := auth.NewService(authRepo, rbacService, employeeRepo, companyRepo)
 	attendanceService := attendance.NewService(db, attendanceRepo)
 	departmentService := department.NewService(db, departmentRepo)
 	employeeSalaryService := employeesalary.NewService(db, employeeSalaryRepo)
-	employeeService := employee.NewServiceWithOutbox(db, employeeRepo, outboxRepo)
+	employeeService := employee.NewServiceWithOutbox(db, employeeRepo, counterRepo, outboxRepo)
 	leaveService := leave.NewService(db, leaveRepo)
 	payrollService := payroll.NewServiceWithOutbox(db, payrollRepo, outboxRepo)
 	positionService := position.NewService(db, positionRepo)
 
 	// --- Handlers ---
+	companyHandler := company.NewHandler(companyService)
 	authHandler := auth.NewHandler(authService)
 	attendanceHandler := attendance.NewHandler(attendanceService)
 	departmentHandler := department.NewHandler(departmentService)
@@ -70,6 +76,7 @@ func registerModules(
 	// --- Routes Registration ---
 	api := router.Group("/api/v1")
 	{
+		company.RegisterRoutes(api, companyHandler, rbacService)
 		auth.RegisterRoutes(api, authHandler)
 		attendance.RegisterRoutes(api, attendanceHandler, rbacService)
 		department.RegisterRoutes(api, departmentHandler, rbacService)

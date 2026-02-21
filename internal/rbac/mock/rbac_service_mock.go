@@ -40,6 +40,34 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
+// AssignRoleIDToEmployee mocks base method.
+func (m *MockService) AssignRoleIDToEmployee(employeeID, roleID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssignRoleIDToEmployee", employeeID, roleID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AssignRoleIDToEmployee indicates an expected call of AssignRoleIDToEmployee.
+func (mr *MockServiceMockRecorder) AssignRoleIDToEmployee(employeeID, roleID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssignRoleIDToEmployee", reflect.TypeOf((*MockService)(nil).AssignRoleIDToEmployee), employeeID, roleID)
+}
+
+// AssignRoleToEmployee mocks base method.
+func (m *MockService) AssignRoleToEmployee(companyID, employeeID, roleName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssignRoleToEmployee", companyID, employeeID, roleName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AssignRoleToEmployee indicates an expected call of AssignRoleToEmployee.
+func (mr *MockServiceMockRecorder) AssignRoleToEmployee(companyID, employeeID, roleName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssignRoleToEmployee", reflect.TypeOf((*MockService)(nil).AssignRoleToEmployee), companyID, employeeID, roleName)
+}
+
 // CreateRole mocks base method.
 func (m *MockService) CreateRole(companyID string, req domain.CreateRoleRequest) error {
 	m.ctrl.T.Helper()
@@ -113,6 +141,21 @@ func (mr *MockServiceMockRecorder) GetRole(id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRole", reflect.TypeOf((*MockService)(nil).GetRole), id)
 }
 
+// GetRoleByName mocks base method.
+func (m *MockService) GetRoleByName(companyID, name string) (*domain.RoleResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRoleByName", companyID, name)
+	ret0, _ := ret[0].(*domain.RoleResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRoleByName indicates an expected call of GetRoleByName.
+func (mr *MockServiceMockRecorder) GetRoleByName(companyID, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRoleByName", reflect.TypeOf((*MockService)(nil).GetRoleByName), companyID, name)
+}
+
 // ListPermissions mocks base method.
 func (m *MockService) ListPermissions() ([]domain.PermissionResponse, error) {
 	m.ctrl.T.Helper()
@@ -155,6 +198,20 @@ func (m *MockService) LoadCompanyPolicy(companyID string) error {
 func (mr *MockServiceMockRecorder) LoadCompanyPolicy(companyID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadCompanyPolicy", reflect.TypeOf((*MockService)(nil).LoadCompanyPolicy), companyID)
+}
+
+// SeedDefaultRoles mocks base method.
+func (m *MockService) SeedDefaultRoles(companyID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SeedDefaultRoles", companyID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SeedDefaultRoles indicates an expected call of SeedDefaultRoles.
+func (mr *MockServiceMockRecorder) SeedDefaultRoles(companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeedDefaultRoles", reflect.TypeOf((*MockService)(nil).SeedDefaultRoles), companyID)
 }
 
 // UpdateRole mocks base method.
