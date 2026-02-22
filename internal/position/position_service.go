@@ -5,12 +5,24 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/singleflight"
 )
+
+const (
+	// Prefix untuk Position
+	PositionAllKeyPrefix = "positions:all:"
+	PositionDetailPrefix = "positions:detail:"
+)
+
+// Helper untuk mendapatkan key lengkap
+func GetPositionAllKey(companyID string) string {
+	return PositionAllKeyPrefix + companyID
+}
 
 //go:generate mockgen -source=position_service.go -destination=mock/position_service_mock.go -package=mock
 type Service interface {
@@ -59,6 +71,14 @@ func (s *service) Create(
 
 	if err := tx.Commit(); err != nil {
 		return PositionResponse{}, err
+	}
+
+	// --- Invalidation Cache ---
+	if s.rdb != nil {
+		cacheKey := GetPositionAllKey(companyID)
+		if err := s.rdb.Del(ctx, cacheKey).Err(); err != nil {
+			log.Printf("ERROR: failed to invalidate cache for key %s: %v", cacheKey, err)
+		}
 	}
 
 	return mapToResponse(*post), nil
@@ -152,6 +172,13 @@ func (s *service) Update(
 		return PositionResponse{}, err
 	}
 
+	if s.rdb != nil {
+		cacheKey := GetPositionAllKey(companyID)
+		if err := s.rdb.Del(ctx, cacheKey).Err(); err != nil {
+			log.Printf("ERROR: failed to invalidate cache for key %s: %v", cacheKey, err)
+		}
+	}
+
 	return mapToResponse(*post), nil
 }
 
@@ -159,7 +186,6 @@ func (s *service) Delete(
 	ctx context.Context,
 	companyID, id string,
 ) error {
-
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -172,7 +198,19 @@ func (s *service) Delete(
 		return err
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	// Invalidasi cache dilakukan tepat setelah data di DB resmi terhapus
+	if s.rdb != nil {
+		cacheKey := GetPositionAllKey(companyID)
+		if err := s.rdb.Del(ctx, cacheKey).Err(); err != nil {
+			log.Printf("ERROR: failed to invalidate cache for key %s: %v", cacheKey, err)
+		}
+	}
+
+	return nil
 }
 
 func mapToResponse(post Position) PositionResponse {
