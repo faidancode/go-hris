@@ -9,11 +9,11 @@ import (
 func RegisterRoutes(r *gin.RouterGroup, handler *Handler) {
 	auth := r.Group("/auth")
 	{
-		auth.GET("/me", middleware.AuthMiddleware(), handler.Me)
-		auth.POST("/login", handler.Login)
+		auth.GET("/me", middleware.AuthMiddleware(), middleware.RateLimitByUser(2, 5), handler.Me)
+		auth.POST("/login", middleware.RateLimitByIP(0.08, 5), handler.Login)
 		auth.POST("/refresh", handler.RefreshToken)
-		auth.POST("/logout", handler.Logout)
-		auth.POST("/register", handler.Register)
-		auth.POST("/register-company", handler.RegisterCompany)
+		auth.POST("/logout", middleware.RateLimitByUser(2, 5), handler.Logout)
+		auth.POST("/register", middleware.RateLimitByUser(2, 5), handler.Register)
+		auth.POST("/register", middleware.RateLimitByIP(0.1, 1), handler.Register)
 	}
 }

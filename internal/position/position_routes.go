@@ -15,14 +15,35 @@ func RegisterRoutes(
 	rbacService rbac.Service,
 ) {
 	positions := r.Group("/positions")
-
 	positions.Use(middleware.AuthMiddleware())
-
 	{
-		positions.GET("", middleware.RBACAuthorize(rbacService, "position", "read"), h.GetAll)
-		positions.POST("", middleware.RBACAuthorize(rbacService, "position", "create"), h.Create)
-		positions.GET("/:id", middleware.RBACAuthorize(rbacService, "position", "read"), h.GetById)
-		positions.PUT("/:id", middleware.RBACAuthorize(rbacService, "position", "update"), h.Update)
-		positions.DELETE("/:id", middleware.RBACAuthorize(rbacService, "position", "delete"), h.Delete)
+		// Akses baca untuk dropdown di form karyawan atau struktur organisasi
+		positions.GET("",
+			middleware.RateLimitByUser(5, 10),
+			middleware.RBACAuthorize(rbacService, "position", "read"),
+			h.GetAll,
+		)
+		positions.GET("/:id",
+			middleware.RateLimitByUser(5, 10),
+			middleware.RBACAuthorize(rbacService, "position", "read"),
+			h.GetById,
+		)
+
+		// Mutasi data jabatan (jarang dilakukan, hanya saat restrukturisasi)
+		positions.POST("",
+			middleware.RateLimitByUser(0.2, 1),
+			middleware.RBACAuthorize(rbacService, "position", "create"),
+			h.Create,
+		)
+		positions.PUT("/:id",
+			middleware.RateLimitByUser(0.2, 1),
+			middleware.RBACAuthorize(rbacService, "position", "update"),
+			h.Update,
+		)
+		positions.DELETE("/:id",
+			middleware.RateLimitByUser(0.1, 1),
+			middleware.RBACAuthorize(rbacService, "position", "delete"),
+			h.Delete,
+		)
 	}
 }

@@ -64,9 +64,7 @@ func (s *service) Update(ctx context.Context, id string, req UpdateCompanyReques
 	if req.Name != "" {
 		comp.Name = req.Name
 	}
-	if req.RegistrationNumber != "" {
-		comp.RegistrationNumber = req.RegistrationNumber
-	}
+
 	if req.IsActive != nil {
 		comp.IsActive = *req.IsActive
 	}
@@ -150,10 +148,9 @@ func (s *service) DeleteRegistration(
 
 func (s *service) mapToResponse(c *Company) *CompanyResponse {
 	return &CompanyResponse{
-		ID:                 c.ID.String(),
-		Name:               c.Name,
-		Email:              c.Email,
-		RegistrationNumber: c.RegistrationNumber,
-		IsActive:           c.IsActive,
+		ID:       c.ID.String(),
+		Name:     c.Name,
+		Email:    c.Email,
+		IsActive: c.IsActive,
 	}
 }

@@ -3,17 +3,15 @@ package company
 import "time"
 
 type CompanyResponse struct {
-	ID                 string `json:"id"`
-	Name               string `json:"name"`
-	Email              string `json:"email"`
-	RegistrationNumber string `json:"registration_number"`
-	IsActive           bool   `json:"is_active"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	IsActive bool   `json:"is_active"`
 }
 
 type UpdateCompanyRequest struct {
-	Name               string `json:"name"`
-	RegistrationNumber string `json:"registration_number"`
-	IsActive           *bool  `json:"is_active"`
+	Name     string `json:"name"`
+	IsActive *bool  `json:"is_active"`
 }
 
 type UpsertCompanyRegistrationRequest struct {

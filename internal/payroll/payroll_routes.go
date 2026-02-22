@@ -22,23 +22,56 @@ func RegisterRoutes(
 	payrolls := r.Group("/payrolls")
 	payrolls.Use(middleware.AuthMiddleware())
 	{
-		payrolls.GET("", middleware.RBACAuthorize(rbacService, "payroll", "read"), handler.GetAll)
-		payrolls.GET("/:id", middleware.RBACAuthorize(rbacService, "payroll", "read"), handler.GetById)
-		payrolls.GET("/:id/breakdown", middleware.RBACAuthorize(rbacService, "payroll", "read"), handler.GetBreakdown)
-		payrolls.GET("/:id/payslip/download", middleware.RBACAuthorize(rbacService, "payroll", "read"), handler.DownloadPayslip)
-		if redisClient != nil {
-			payrolls.POST(
-				"",
-				middleware.Idempotency(redisClient),
-				middleware.RBACAuthorize(rbacService, "payroll", "create"),
-				handler.Create,
-			)
-		} else {
-			payrolls.POST("", middleware.RBACAuthorize(rbacService, "payroll", "create"), handler.Create)
+		payrolls.GET("",
+			middleware.RateLimitByUser(2, 5),
+			middleware.RBACAuthorize(rbacService, "payroll", "read"),
+			handler.GetAll,
+		)
+		payrolls.GET("/:id",
+			middleware.RateLimitByUser(2, 5),
+			middleware.RBACAuthorize(rbacService, "payroll", "read"),
+			handler.GetById,
+		)
+		payrolls.GET("/:id/breakdown",
+			middleware.RateLimitByUser(2, 5),
+			middleware.RBACAuthorize(rbacService, "payroll", "read"),
+			handler.GetBreakdown,
+		)
+		payrolls.GET("/:id/payslip/download",
+			middleware.RateLimitByUser(0.5, 1), // Ketat karena proses generate PDF berat
+			middleware.RBACAuthorize(rbacService, "payroll", "read"),
+			handler.DownloadPayslip,
+		)
+
+		// POST Create dengan Idempotency
+		createMiddleware := []gin.HandlerFunc{
+			middleware.RateLimitByUser(0.1, 1),
+			middleware.RBACAuthorize(rbacService, "payroll", "create"),
 		}
-		payrolls.POST("/:id/regenerate", middleware.RBACAuthorize(rbacService, "payroll", "create"), handler.Regenerate)
-		payrolls.POST("/:id/approve", middleware.RBACAuthorize(rbacService, "payroll", "approve"), handler.Approve)
-		payrolls.POST("/:id/mark-paid", middleware.RBACAuthorize(rbacService, "payroll", "pay"), handler.MarkAsPaid)
-		payrolls.DELETE("/:id", middleware.RBACAuthorize(rbacService, "payroll", "delete"), handler.Delete)
+		if redisClient != nil {
+			createMiddleware = append([]gin.HandlerFunc{middleware.Idempotency(redisClient)}, createMiddleware...)
+		}
+		payrolls.POST("", append(createMiddleware, handler.Create)...)
+
+		payrolls.POST("/:id/regenerate",
+			middleware.RateLimitByUser(0.1, 1),
+			middleware.RBACAuthorize(rbacService, "payroll", "create"),
+			handler.Regenerate,
+		)
+		payrolls.POST("/:id/approve",
+			middleware.RateLimitByUser(0.2, 1),
+			middleware.RBACAuthorize(rbacService, "payroll", "approve"),
+			handler.Approve,
+		)
+		payrolls.POST("/:id/mark-paid",
+			middleware.RateLimitByUser(0.1, 1),
+			middleware.RBACAuthorize(rbacService, "payroll", "pay"),
+			handler.MarkAsPaid,
+		)
+		payrolls.DELETE("/:id",
+			middleware.RateLimitByUser(0.05, 1),
+			middleware.RBACAuthorize(rbacService, "payroll", "delete"),
+			handler.Delete,
+		)
 	}
 }

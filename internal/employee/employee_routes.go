@@ -15,10 +15,33 @@ func RegisterRoutes(
 	employees := r.Group("/employees")
 	employees.Use(middleware.AuthMiddleware())
 	{
-		employees.GET("", middleware.RBACAuthorize(rbacService, "employee", "read"), handler.GetAll)
-		employees.GET("/:id", middleware.RBACAuthorize(rbacService, "employee", "read"), handler.GetById)
-		employees.POST("", middleware.RBACAuthorize(rbacService, "employee", "create"), handler.Create)
-		employees.PUT("/:id", middleware.RBACAuthorize(rbacService, "employee", "create"), handler.Update)
-		employees.DELETE("/:id", middleware.RBACAuthorize(rbacService, "employee", "delete"), handler.Delete)
+		employees.GET("",
+			middleware.RateLimitByUser(3, 10),
+			middleware.RBACAuthorize(rbacService, "employee", "read"),
+			handler.GetAll,
+		)
+		employees.GET("/:id",
+			middleware.RateLimitByUser(3, 10),
+			middleware.RBACAuthorize(rbacService, "employee", "read"),
+			handler.GetById,
+		)
+
+		employees.POST("",
+			middleware.RateLimitByUser(0.1, 1),
+			middleware.RBACAuthorize(rbacService, "employee", "create"),
+			handler.Create,
+		)
+
+		employees.PUT("/:id",
+			middleware.RateLimitByUser(0.5, 2),
+			middleware.RBACAuthorize(rbacService, "employee", "update"),
+			handler.Update,
+		)
+
+		employees.DELETE("/:id",
+			middleware.RateLimitByUser(0.05, 1),
+			middleware.RBACAuthorize(rbacService, "employee", "delete"),
+			handler.Delete,
+		)
 	}
 }

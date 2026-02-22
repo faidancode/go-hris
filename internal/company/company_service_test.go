@@ -23,11 +23,10 @@ func TestCompanyService_GetByID(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		id := uuid.New()
 		mockComp := &company.Company{
-			ID:                 id,
-			Name:               "Test Company",
-			Email:              "test@company.com",
-			RegistrationNumber: "REG123",
-			IsActive:           true,
+			ID:       id,
+			Name:     "Test Company",
+			Email:    "test@company.com",
+			IsActive: true,
 		}
 
 		mockRepo.EXPECT().GetByID(ctx, id).Return(mockComp, nil)

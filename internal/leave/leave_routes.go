@@ -15,13 +15,46 @@ func RegisterRoutes(
 	leaves := r.Group("/leaves")
 	leaves.Use(middleware.AuthMiddleware())
 	{
-		leaves.GET("", middleware.RBACAuthorize(rbacService, "leave", "read"), handler.GetAll)
-		leaves.GET("/:id", middleware.RBACAuthorize(rbacService, "leave", "read"), handler.GetById)
-		leaves.POST("", middleware.RBACAuthorize(rbacService, "leave", "create"), handler.Create)
-		leaves.PUT("/:id", middleware.RBACAuthorize(rbacService, "leave", "create"), handler.Update)
-		leaves.POST("/:id/submit", middleware.RBACAuthorize(rbacService, "leave", "create"), handler.Submit)
-		leaves.POST("/:id/approve", middleware.RBACAuthorize(rbacService, "leave", "approve"), handler.Approve)
-		leaves.POST("/:id/reject", middleware.RBACAuthorize(rbacService, "leave", "approve"), handler.Reject)
-		leaves.DELETE("/:id", middleware.RBACAuthorize(rbacService, "leave", "approve"), handler.Delete)
+		leaves.GET("",
+			middleware.RateLimitByUser(3, 10),
+			middleware.RBACAuthorize(rbacService, "leave", "read"),
+			handler.GetAll,
+		)
+		leaves.GET("/:id",
+			middleware.RateLimitByUser(3, 10),
+			middleware.RBACAuthorize(rbacService, "leave", "read"),
+			handler.GetById,
+		)
+		// Prevent double-tap
+		leaves.POST("",
+			middleware.RateLimitByUser(0.5, 2),
+			middleware.RBACAuthorize(rbacService, "leave", "create"),
+			handler.Create,
+		)
+		leaves.PUT("/:id",
+			middleware.RateLimitByUser(0.5, 2),
+			middleware.RBACAuthorize(rbacService, "leave", "create"),
+			handler.Update,
+		)
+		leaves.POST("/:id/submit",
+			middleware.RateLimitByUser(0.2, 1),
+			middleware.RBACAuthorize(rbacService, "leave", "create"),
+			handler.Submit,
+		)
+		leaves.POST("/:id/approve",
+			middleware.RateLimitByUser(0.5, 1),
+			middleware.RBACAuthorize(rbacService, "leave", "approve"),
+			handler.Approve,
+		)
+		leaves.POST("/:id/reject",
+			middleware.RateLimitByUser(0.5, 1),
+			middleware.RBACAuthorize(rbacService, "leave", "approve"),
+			handler.Reject,
+		)
+		leaves.DELETE("/:id",
+			middleware.RateLimitByUser(0.1, 1),
+			middleware.RBACAuthorize(rbacService, "leave", "delete"),
+			handler.Delete,
+		)
 	}
 }
