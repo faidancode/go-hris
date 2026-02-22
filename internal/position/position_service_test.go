@@ -3,8 +3,11 @@ package position_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"go-hris/internal/position"
 	"go-hris/internal/shared/apperror"
@@ -12,31 +15,35 @@ import (
 	positionMock "go-hris/internal/position/mock"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
 type serviceDeps struct {
-	db      *sql.DB
-	sqlMock sqlmock.Sqlmock
-	service position.Service
-	repo    *positionMock.MockRepository
+	db        *sql.DB
+	sqlMock   sqlmock.Sqlmock
+	service   position.Service
+	repo      *positionMock.MockRepository
+	redismock redismock.ClientMock
 }
 
 func setupServiceTest(t *testing.T) *serviceDeps {
 	ctrl := gomock.NewController(t)
 
 	db, sqlMock, _ := sqlmock.New()
+	dbRedis, redisMock := redismock.NewClientMock()
 	repo := positionMock.NewMockRepository(ctrl)
 
-	svc := position.NewService(db, repo)
+	svc := position.NewService(db, repo, dbRedis)
 
 	return &serviceDeps{
-		db:      db,
-		sqlMock: sqlMock,
-		service: svc,
-		repo:    repo,
+		db:        db,
+		sqlMock:   sqlMock,
+		service:   svc,
+		repo:      repo,
+		redismock: redisMock,
 	}
 }
 
@@ -49,6 +56,82 @@ func expectTx(t *testing.T, mock sqlmock.Sqlmock, commit bool) {
 		mock.ExpectRollback()
 	}
 }
+
+func TestPositionService_GetAll(t *testing.T) {
+	deps := setupServiceTest(t)
+	defer deps.db.Close()
+
+	ctx := context.Background()
+	companyID := "c56a4180-65aa-42ec-a945-5fd21dec0538"
+	cacheKey := fmt.Sprintf("positions:all:%s", companyID)
+
+	t.Run("Hit Cache - Harus ambil data dari Redis", func(t *testing.T) {
+		// Data dummy untuk cache
+		expectedResp := []position.PositionResponse{
+			{ID: "pos-1", Name: "Software Engineer"},
+			{ID: "pos-2", Name: "Product Manager"},
+		}
+		jsonResp, _ := json.Marshal(expectedResp)
+
+		// Mock Redis Get sukses
+		deps.redismock.ExpectGet(cacheKey).SetVal(string(jsonResp))
+
+		resp, err := deps.service.GetAll(ctx, companyID)
+
+		// Verifikasi
+		assert.NoError(t, err)
+		assert.Len(t, resp, 2)
+		assert.Equal(t, "Software Engineer", resp[0].Name)
+
+		// Pastikan Repo TIDAK dipanggil jika cache hit
+		deps.repo.EXPECT().FindAllByCompany(gomock.Any(), gomock.Any()).Times(0)
+	})
+
+	t.Run("Miss Cache - Harus ambil dari DB dan simpan ke Redis", func(t *testing.T) {
+		// 1. Mock Redis Get return Nil (Cache Miss)
+		deps.redismock.ExpectGet(cacheKey).RedisNil()
+
+		// 2. Data dummy dari DB
+		mockPositions := []position.Position{
+			{
+				ID:   uuid.New(),
+				Name: "Designer",
+			},
+		}
+
+		// 3. Mock Repo dipanggil tepat satu kali
+		deps.repo.EXPECT().
+			FindAllByCompany(ctx, companyID).
+			Return(mockPositions, nil).
+			Times(1)
+
+		// 4. Mock Redis Set (karena service harus menyimpan hasil DB ke cache)
+		// Kita gunakan gomock.Any() untuk argumen value JSON-nya
+		deps.redismock.ExpectSet(cacheKey, gomock.Any(), 30*time.Minute).SetVal("OK")
+
+		resp, err := deps.service.GetAll(ctx, companyID)
+
+		// Verifikasi
+		assert.NoError(t, err)
+		assert.Len(t, resp, 1)
+		assert.Equal(t, "Designer", resp[0].Name)
+	})
+
+	t.Run("Database Error - Harus mengembalikan error", func(t *testing.T) {
+		deps.redismock.ExpectGet(cacheKey).RedisNil()
+
+		deps.repo.EXPECT().
+			FindAllByCompany(ctx, companyID).
+			Return(nil, errors.New("db connection error")).
+			Times(1)
+
+		resp, err := deps.service.GetAll(ctx, companyID)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+	})
+}
+
 func TestPositionService_Create(t *testing.T) {
 	deps := setupServiceTest(t)
 	defer deps.db.Close()

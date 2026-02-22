@@ -3,9 +3,13 @@ package position
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/singleflight"
 )
 
 //go:generate mockgen -source=position_service.go -destination=mock/position_service_mock.go -package=mock
@@ -20,10 +24,12 @@ type Service interface {
 type service struct {
 	db   *sql.DB
 	repo Repository
+	rdb  *redis.Client
+	sf   *singleflight.Group
 }
 
-func NewService(db *sql.DB, repo Repository) Service {
-	return &service{db: db, repo: repo}
+func NewService(db *sql.DB, repo Repository, rdb *redis.Client) Service {
+	return &service{db: db, repo: repo, rdb: rdb, sf: &singleflight.Group{}}
 }
 
 func (s *service) Create(
@@ -40,14 +46,14 @@ func (s *service) Create(
 
 	qtx := s.repo.WithTx(tx)
 
-	dept := &Position{
+	post := &Position{
 		ID:           uuid.New(),
 		Name:         req.Name,
 		CompanyID:    uuid.MustParse(companyID),
 		DepartmentID: uuid.MustParse(req.DepartmentID),
 	}
 
-	if err := qtx.Create(ctx, dept); err != nil {
+	if err := qtx.Create(ctx, post); err != nil {
 		return PositionResponse{}, err
 	}
 
@@ -55,20 +61,52 @@ func (s *service) Create(
 		return PositionResponse{}, err
 	}
 
-	return mapToResponse(*dept), nil
+	return mapToResponse(*post), nil
 }
 
 func (s *service) GetAll(
 	ctx context.Context,
 	companyID string,
 ) ([]PositionResponse, error) {
+	// 1. Definisikan Key yang unik per Company
+	cacheKey := fmt.Sprintf("positions:all:%s", companyID)
 
-	depts, err := s.repo.FindAllByCompany(ctx, companyID)
+	// 2. Coba ambil dari Redis
+	if s.rdb != nil {
+		cached, err := s.rdb.Get(ctx, cacheKey).Result()
+		if err == nil {
+			var resp []PositionResponse
+			if err := json.Unmarshal([]byte(cached), &resp); err == nil {
+				return resp, nil
+			}
+		}
+	}
+
+	// 3. Gunakan Singleflight untuk mencegah query berulang ke DB
+	v, err, _ := s.sf.Do(cacheKey, func() (interface{}, error) {
+		// Query ke Database
+		positions, err := s.repo.FindAllByCompany(ctx, companyID)
+		if err != nil {
+			return nil, err
+		}
+
+		resp := mapToListResponse(positions)
+
+		// 4. Simpan ke Redis (TTL 30 Menit - 1 Jam cukup untuk data Master)
+		if s.rdb != nil {
+			if jsonData, err := json.Marshal(resp); err == nil {
+				s.rdb.Set(ctx, cacheKey, jsonData, 30*time.Minute)
+			}
+		}
+
+		return resp, nil
+	})
+
 	if err != nil {
 		return nil, err
 	}
 
-	return mapToListResponse(depts), nil
+	return v.([]PositionResponse), nil
 }
 
 func (s *service) GetByID(
@@ -76,12 +114,12 @@ func (s *service) GetByID(
 	companyID, id string,
 ) (PositionResponse, error) {
 
-	dept, err := s.repo.FindByIDAndCompany(ctx, companyID, id)
+	post, err := s.repo.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
 		return PositionResponse{}, err
 	}
 
-	return mapToResponse(*dept), nil
+	return mapToResponse(*post), nil
 }
 
 func (s *service) Update(
@@ -98,15 +136,15 @@ func (s *service) Update(
 
 	qtx := s.repo.WithTx(tx)
 
-	dept, err := qtx.FindByIDAndCompany(ctx, companyID, id)
+	post, err := qtx.FindByIDAndCompany(ctx, companyID, id)
 	if err != nil {
 		return PositionResponse{}, err
 	}
 
-	dept.Name = req.Name
-	dept.DepartmentID = uuid.MustParse(req.DepartmentID)
+	post.Name = req.Name
+	post.DepartmentID = uuid.MustParse(req.DepartmentID)
 
-	if err := qtx.Update(ctx, dept); err != nil {
+	if err := qtx.Update(ctx, post); err != nil {
 		return PositionResponse{}, err
 	}
 
@@ -114,7 +152,7 @@ func (s *service) Update(
 		return PositionResponse{}, err
 	}
 
-	return mapToResponse(*dept), nil
+	return mapToResponse(*post), nil
 }
 
 func (s *service) Delete(
@@ -137,30 +175,30 @@ func (s *service) Delete(
 	return tx.Commit()
 }
 
-func mapToResponse(dept Position) PositionResponse {
+func mapToResponse(post Position) PositionResponse {
 	resp := PositionResponse{
-		ID:        dept.ID.String(),
-		Name:      dept.Name,
-		CompanyID: dept.CompanyID.String(),
+		ID:        post.ID.String(),
+		Name:      post.Name,
+		CompanyID: post.CompanyID.String(),
 	}
-	if dept.DepartmentID != uuid.Nil {
-		resp.DepartmentID = dept.DepartmentID.String()
+	if post.DepartmentID != uuid.Nil {
+		resp.DepartmentID = post.DepartmentID.String()
 	}
-	if dept.Department != nil {
-		resp.DepartmentName = dept.Department.Name
+	if post.Department != nil {
+		resp.DepartmentName = post.Department.Name
 	}
-	if !dept.CreatedAt.IsZero() {
-		resp.CreatedAt = dept.CreatedAt.Format(time.RFC3339)
+	if !post.CreatedAt.IsZero() {
+		resp.CreatedAt = post.CreatedAt.Format(time.RFC3339)
 	}
-	if !dept.UpdatedAt.IsZero() {
-		resp.UpdatedAt = dept.UpdatedAt.Format(time.RFC3339)
+	if !post.UpdatedAt.IsZero() {
+		resp.UpdatedAt = post.UpdatedAt.Format(time.RFC3339)
 	}
 	return resp
 }
 
-func mapToListResponse(depts []Position) []PositionResponse {
-	res := make([]PositionResponse, len(depts))
-	for i, d := range depts {
+func mapToListResponse(posts []Position) []PositionResponse {
+	res := make([]PositionResponse, len(posts))
+	for i, d := range posts {
 		res[i] = mapToResponse(d)
 	}
 	return res
