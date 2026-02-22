@@ -41,6 +41,20 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
+// DeleteRegistration mocks base method.
+func (m *MockService) DeleteRegistration(ctx context.Context, companyID string, regType company.RegistrationType) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRegistration", ctx, companyID, regType)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRegistration indicates an expected call of DeleteRegistration.
+func (mr *MockServiceMockRecorder) DeleteRegistration(ctx, companyID, regType any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRegistration", reflect.TypeOf((*MockService)(nil).DeleteRegistration), ctx, companyID, regType)
+}
+
 // GetByEmail mocks base method.
 func (m *MockService) GetByEmail(ctx context.Context, email string) (*company.CompanyResponse, error) {
 	m.ctrl.T.Helper()
@@ -71,6 +85,21 @@ func (mr *MockServiceMockRecorder) GetByID(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockService)(nil).GetByID), ctx, id)
 }
 
+// ListRegistrations mocks base method.
+func (m *MockService) ListRegistrations(ctx context.Context, companyID string) ([]company.CompanyRegistrationResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListRegistrations", ctx, companyID)
+	ret0, _ := ret[0].([]company.CompanyRegistrationResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListRegistrations indicates an expected call of ListRegistrations.
+func (mr *MockServiceMockRecorder) ListRegistrations(ctx, companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListRegistrations", reflect.TypeOf((*MockService)(nil).ListRegistrations), ctx, companyID)
+}
+
 // Update mocks base method.
 func (m *MockService) Update(ctx context.Context, id string, req company.UpdateCompanyRequest) (*company.CompanyResponse, error) {
 	m.ctrl.T.Helper()
@@ -84,4 +113,18 @@ func (m *MockService) Update(ctx context.Context, id string, req company.UpdateC
 func (mr *MockServiceMockRecorder) Update(ctx, id, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockService)(nil).Update), ctx, id, req)
+}
+
+// UpsertRegistration mocks base method.
+func (m *MockService) UpsertRegistration(ctx context.Context, companyID string, req company.UpsertCompanyRegistrationRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertRegistration", ctx, companyID, req)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpsertRegistration indicates an expected call of UpsertRegistration.
+func (mr *MockServiceMockRecorder) UpsertRegistration(ctx, companyID, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertRegistration", reflect.TypeOf((*MockService)(nil).UpsertRegistration), ctx, companyID, req)
 }

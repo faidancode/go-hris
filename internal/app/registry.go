@@ -29,6 +29,7 @@ func registerModules(
 	gormDB *gorm.DB,
 	rdb *redis.Client,
 ) error {
+
 	// --- Repositories ---
 	rbacRepo := rbac.NewRepository(gormDB)
 	attendanceRepo := attendance.NewRepository(gormDB)

@@ -1,18 +1,26 @@
 package company
 
 import (
+	companyerrors "go-hris/internal/company/errors"
+	"go-hris/internal/shared/apperror"
 	"go-hris/internal/shared/response"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type Handler struct {
 	service Service
+	logger  *zap.Logger
 }
 
-func NewHandler(s Service) *Handler {
-	return &Handler{service: s}
+func NewHandler(service Service, logger ...*zap.Logger) *Handler {
+	l := zap.L().Named("company.handler")
+	if len(logger) > 0 && logger[0] != nil {
+		l = logger[0].Named("company.handler")
+	}
+	return &Handler{service: service, logger: l}
 }
 
 func (h *Handler) GetMe(c *gin.Context) {
@@ -51,4 +59,82 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, comp, nil)
+}
+
+func (h *Handler) UpsertRegistration(c *gin.Context) {
+	companyID := c.GetString("company_id")
+	if companyID == "" {
+		err := apperror.New(
+			apperror.CodeUnauthorized,
+			"Unauthorized",
+			http.StatusUnauthorized,
+		)
+		httpErr := apperror.ToHTTP(err)
+		c.JSON(httpErr.Status, httpErr)
+		return
+	}
+
+	var req UpsertCompanyRegistrationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpErr := apperror.ToHTTP(apperror.MapValidationError(err))
+		c.JSON(httpErr.Status, httpErr)
+		return
+	}
+
+	if err := h.service.UpsertRegistration(c.Request.Context(), companyID, req); err != nil {
+		httpErr := apperror.ToHTTP(err)
+		c.JSON(httpErr.Status, httpErr)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) DeleteRegistration(c *gin.Context) {
+	companyID := c.GetString("company_id")
+	if companyID == "" {
+		httpErr := apperror.ToHTTP(apperror.New(apperror.CodeUnauthorized, "Unauthorized", http.StatusUnauthorized))
+		c.JSON(httpErr.Status, httpErr)
+		return
+	}
+	typeParam := c.Param("type")
+	if typeParam == "" {
+		// Gunakan error yang sudah ada atau buat baru
+		httpErr := apperror.ToHTTP(companyerrors.ErrInvalidRegistrationType)
+		c.JSON(httpErr.Status, httpErr)
+		return
+	}
+	regType := RegistrationType(typeParam)
+
+	if err := h.service.DeleteRegistration(c.Request.Context(), companyID, regType); err != nil {
+		h.logger.Error("failed to delete registration", zap.Error(err))
+
+		httpErr := apperror.ToHTTP(err)
+		c.JSON(httpErr.Status, httpErr)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) ListRegistrations(c *gin.Context) {
+	companyID := c.GetString("company_id")
+	if companyID == "" {
+		err := apperror.New(
+			apperror.CodeUnauthorized,
+			"Unauthorized",
+			http.StatusUnauthorized,
+		)
+		httpErr := apperror.ToHTTP(err)
+		c.JSON(httpErr.Status, httpErr)
+		return
+	}
+
+	result, err := h.service.ListRegistrations(c.Request.Context(), companyID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }

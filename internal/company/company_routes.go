@@ -13,5 +13,8 @@ func RegisterRoutes(r *gin.RouterGroup, handler *Handler, rbacService rbac.Servi
 	{
 		company.GET("/me", handler.GetMe)
 		company.PUT("/me", middleware.RBACAuthorize(rbacService, "company", "update"), handler.UpdateMe)
+		company.POST("/:id/registrations", handler.UpsertRegistration)
+		company.GET("/:id/registrations", handler.ListRegistrations)
+		company.DELETE("/:id/registrations/:type", handler.DeleteRegistration)
 	}
 }

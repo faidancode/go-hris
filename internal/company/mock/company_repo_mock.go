@@ -57,6 +57,20 @@ func (mr *MockRepositoryMockRecorder) Create(ctx, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepository)(nil).Create), ctx, arg1)
 }
 
+// DeleteRegistration mocks base method.
+func (m *MockRepository) DeleteRegistration(ctx context.Context, companyID uuid.UUID, regType company.RegistrationType) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRegistration", ctx, companyID, regType)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRegistration indicates an expected call of DeleteRegistration.
+func (mr *MockRepositoryMockRecorder) DeleteRegistration(ctx, companyID, regType any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRegistration", reflect.TypeOf((*MockRepository)(nil).DeleteRegistration), ctx, companyID, regType)
+}
+
 // GetByEmail mocks base method.
 func (m *MockRepository) GetByEmail(ctx context.Context, email string) (*company.Company, error) {
 	m.ctrl.T.Helper()
@@ -87,6 +101,21 @@ func (mr *MockRepositoryMockRecorder) GetByID(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockRepository)(nil).GetByID), ctx, id)
 }
 
+// GetRegistrationsByCompanyID mocks base method.
+func (m *MockRepository) GetRegistrationsByCompanyID(ctx context.Context, companyID uuid.UUID) ([]company.CompanyRegistration, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRegistrationsByCompanyID", ctx, companyID)
+	ret0, _ := ret[0].([]company.CompanyRegistration)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRegistrationsByCompanyID indicates an expected call of GetRegistrationsByCompanyID.
+func (mr *MockRepositoryMockRecorder) GetRegistrationsByCompanyID(ctx, companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRegistrationsByCompanyID", reflect.TypeOf((*MockRepository)(nil).GetRegistrationsByCompanyID), ctx, companyID)
+}
+
 // Update mocks base method.
 func (m *MockRepository) Update(ctx context.Context, arg1 *company.Company) error {
 	m.ctrl.T.Helper()
@@ -99,6 +128,20 @@ func (m *MockRepository) Update(ctx context.Context, arg1 *company.Company) erro
 func (mr *MockRepositoryMockRecorder) Update(ctx, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRepository)(nil).Update), ctx, arg1)
+}
+
+// UpsertRegistration mocks base method.
+func (m *MockRepository) UpsertRegistration(ctx context.Context, reg *company.CompanyRegistration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertRegistration", ctx, reg)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpsertRegistration indicates an expected call of UpsertRegistration.
+func (mr *MockRepositoryMockRecorder) UpsertRegistration(ctx, reg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertRegistration", reflect.TypeOf((*MockRepository)(nil).UpsertRegistration), ctx, reg)
 }
 
 // WithTx mocks base method.
