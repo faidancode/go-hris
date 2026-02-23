@@ -75,17 +75,18 @@ func (s *service) Create(
 	companyID string,
 	req CreateEmployeeRequest,
 ) (EmployeeResponse, error) {
-	rid := contextutil.GetRequestID(ctx)
-	s.logger.Debug("create employee requested",
-		zap.String("request_id", rid), // Propagasi ke logs
+	l := contextutil.GetLogger(ctx, s.logger).With(
 		zap.String("company_id", companyID),
+	)
+
+	l.Debug("create employee process started",
+		zap.String("full_name", req.FullName),
 		zap.String("position_id", req.PositionID),
-		zap.String("email", req.Email),
 	)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		s.logger.Error("create employee begin tx failed", zap.String("request_id", rid), zap.Error(err))
+		l.Error("failed to begin transaction", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 	defer tx.Rollback()
@@ -142,7 +143,7 @@ func (s *service) Create(
 
 	event := events.EmployeeCreatedEvent{
 		EventType:  "employee_created",
-		RequestID:  rid, // Propagasi ke async events
+		RequestID:  contextutil.GetRequestID(ctx), // Propagasi ke async events
 		EmployeeID: empl.ID.String(),
 		CompanyID:  companyID,
 		OccurredAt: time.Now().UTC(),
@@ -150,14 +151,14 @@ func (s *service) Create(
 	if s.outbox != nil {
 		payload, err := json.Marshal(event)
 		if err != nil {
-			s.logger.Error("marshal event failed", zap.String("request_id", rid), zap.Error(err))
+			l.Error("marshal event failed", zap.Error(err))
 			return EmployeeResponse{}, err
 		}
 
 		outboxRepo := s.outbox.WithTx(tx)
 		if err := outboxRepo.Create(ctx, kafka.OutboxEvent{
 			ID:            uuid.NewString(),
-			RequestID:     rid,
+			RequestID:     contextutil.GetRequestID(ctx),
 			AggregateType: "employee",
 			AggregateID:   empl.ID.String(),
 			EventType:     event.EventType,
@@ -174,7 +175,7 @@ func (s *service) Create(
 	}
 
 	if err := tx.Commit(); err != nil {
-		s.logger.Error("commit failed", zap.String("request_id", rid), zap.Error(err))
+		l.Error("failed to commit transaction", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 
@@ -194,7 +195,7 @@ func (s *service) Create(
 		)
 	}
 	s.logger.Info("create employee success",
-		zap.String("request_id", rid),
+		zap.String("request_id", contextutil.GetRequestID(ctx)),
 		zap.String("employee_id", empl.ID.String()),
 	)
 
