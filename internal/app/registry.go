@@ -57,7 +57,7 @@ func registerModules(
 	attendanceService := attendance.NewService(db, attendanceRepo)
 	departmentService := department.NewService(db, departmentRepo, rdb)
 	employeeSalaryService := employeesalary.NewService(db, employeeSalaryRepo)
-	employeeService := employee.NewServiceWithOutbox(db, employeeRepo, counterRepo, outboxRepo)
+	employeeService := employee.NewServiceWithOutbox(db, employeeRepo, counterRepo, outboxRepo, rdb)
 	leaveService := leave.NewService(db, leaveRepo)
 	payrollService := payroll.NewServiceWithOutbox(db, payrollRepo, outboxRepo)
 	positionService := position.NewService(db, positionRepo, rdb)

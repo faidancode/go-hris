@@ -43,17 +43,17 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockRepository) Create(ctx context.Context, dept *employee.Employee) error {
+func (m *MockRepository) Create(ctx context.Context, emp *employee.Employee) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", ctx, dept)
+	ret := m.ctrl.Call(m, "Create", ctx, emp)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockRepositoryMockRecorder) Create(ctx, dept any) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) Create(ctx, emp any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepository)(nil).Create), ctx, dept)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepository)(nil).Create), ctx, emp)
 }
 
 // Delete mocks base method.
@@ -100,6 +100,21 @@ func (mr *MockRepositoryMockRecorder) FindByIDAndCompany(ctx, companyID, id any)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByIDAndCompany", reflect.TypeOf((*MockRepository)(nil).FindByIDAndCompany), ctx, companyID, id)
 }
 
+// FindOptionsByCompany mocks base method.
+func (m *MockRepository) FindOptionsByCompany(ctx context.Context, companyID string) ([]employee.Employee, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindOptionsByCompany", ctx, companyID)
+	ret0, _ := ret[0].([]employee.Employee)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindOptionsByCompany indicates an expected call of FindOptionsByCompany.
+func (mr *MockRepositoryMockRecorder) FindOptionsByCompany(ctx, companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindOptionsByCompany", reflect.TypeOf((*MockRepository)(nil).FindOptionsByCompany), ctx, companyID)
+}
+
 // GetDepartmentIDByPosition mocks base method.
 func (m *MockRepository) GetDepartmentIDByPosition(ctx context.Context, companyID, positionID string) (string, error) {
 	m.ctrl.T.Helper()
@@ -116,17 +131,17 @@ func (mr *MockRepositoryMockRecorder) GetDepartmentIDByPosition(ctx, companyID, 
 }
 
 // Update mocks base method.
-func (m *MockRepository) Update(ctx context.Context, dept *employee.Employee) error {
+func (m *MockRepository) Update(ctx context.Context, emp *employee.Employee) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", ctx, dept)
+	ret := m.ctrl.Call(m, "Update", ctx, emp)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockRepositoryMockRecorder) Update(ctx, dept any) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) Update(ctx, emp any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRepository)(nil).Update), ctx, dept)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRepository)(nil).Update), ctx, emp)
 }
 
 // WithTx mocks base method.

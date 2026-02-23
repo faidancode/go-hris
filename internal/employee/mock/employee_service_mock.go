@@ -100,6 +100,21 @@ func (mr *MockServiceMockRecorder) GetByID(ctx, companyID, id any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockService)(nil).GetByID), ctx, companyID, id)
 }
 
+// GetOptions mocks base method.
+func (m *MockService) GetOptions(ctx context.Context, companyID string) ([]employee.EmployeeResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOptions", ctx, companyID)
+	ret0, _ := ret[0].([]employee.EmployeeResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOptions indicates an expected call of GetOptions.
+func (mr *MockServiceMockRecorder) GetOptions(ctx, companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOptions", reflect.TypeOf((*MockService)(nil).GetOptions), ctx, companyID)
+}
+
 // Update mocks base method.
 func (m *MockService) Update(ctx context.Context, companyID, id string, req employee.UpdateEmployeeRequest) (employee.EmployeeResponse, error) {
 	m.ctrl.T.Helper()

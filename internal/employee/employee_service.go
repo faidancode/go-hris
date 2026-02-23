@@ -12,13 +12,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+	"golang.org/x/sync/singleflight"
 )
+
+const EmployeeOptionsKeyPrefix = "employees:options:"
+
+func GetEmployeeOptionsKey(companyID string) string {
+	return EmployeeOptionsKeyPrefix + companyID
+}
 
 //go:generate mockgen -source=employee_service.go -destination=mock/employee_service_mock.go -package=mock
 type Service interface {
 	Create(ctx context.Context, companyID string, req CreateEmployeeRequest) (EmployeeResponse, error)
 	GetAll(ctx context.Context, companyID string) ([]EmployeeResponse, error)
+	GetOptions(ctx context.Context, companyID string) ([]EmployeeResponse, error)
 	GetByID(ctx context.Context, companyID, id string) (EmployeeResponse, error)
 	Update(ctx context.Context, companyID, id string, req UpdateEmployeeRequest) (EmployeeResponse, error)
 	Delete(ctx context.Context, companyID, id string) error
@@ -29,11 +38,13 @@ type service struct {
 	repo    Repository
 	counter counter.Repository
 	outbox  kafka.OutboxRepository
+	rdb     *redis.Client
+	sf      *singleflight.Group
 	logger  *zap.Logger
 }
 
-func NewService(db *sql.DB, repo Repository, counter counter.Repository, logger ...*zap.Logger) Service {
-	return NewServiceWithOutbox(db, repo, counter, nil, logger...)
+func NewService(db *sql.DB, repo Repository, counter counter.Repository, rdb *redis.Client, logger ...*zap.Logger) Service {
+	return NewServiceWithOutbox(db, repo, counter, nil, rdb, logger...)
 }
 
 func NewServiceWithOutbox(
@@ -41,13 +52,21 @@ func NewServiceWithOutbox(
 	repo Repository,
 	counter counter.Repository,
 	outboxRepo kafka.OutboxRepository,
+	rdb *redis.Client,
 	logger ...*zap.Logger,
 ) Service {
 	l := zap.L().Named("employee.service")
 	if len(logger) > 0 && logger[0] != nil {
 		l = logger[0].Named("employee.service")
 	}
-	return &service{db: db, repo: repo, counter: counter, outbox: outboxRepo, logger: l}
+	return &service{
+		db:      db,
+		repo:    repo,
+		counter: counter,
+		outbox:  outboxRepo,
+		rdb:     rdb,
+		sf:      &singleflight.Group{},
+		logger:  l}
 }
 
 func (s *service) Create(
@@ -153,6 +172,17 @@ func (s *service) Create(
 		s.logger.Error("create employee commit failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
+
+	if s.rdb != nil {
+		cacheKey := GetEmployeeOptionsKey(companyID)
+		if err := s.rdb.Del(ctx, cacheKey).Err(); err != nil {
+			s.logger.Error("failed to invalidate employee options cache",
+				zap.Error(err),
+				zap.String("key", cacheKey),
+			)
+		}
+	}
+
 	if s.outbox != nil {
 		s.logger.Info("create employee outbox queued",
 			zap.String("employee_id", empl.ID.String()),
@@ -175,6 +205,45 @@ func (s *service) GetAll(
 	}
 
 	return mapToListResponse(depts), nil
+}
+
+func (s *service) GetOptions(ctx context.Context, companyID string) ([]EmployeeResponse, error) {
+	cacheKey := EmployeeOptionsKeyPrefix + companyID
+
+	// 1. Cek Redis
+	if s.rdb != nil {
+		if cached, err := s.rdb.Get(ctx, cacheKey).Result(); err == nil {
+			var resp []EmployeeResponse
+			if json.Unmarshal([]byte(cached), &resp) == nil {
+				return resp, nil
+			}
+		}
+	}
+
+	// 2. Singleflight untuk handle traffic tinggi saat Admin buka form
+	v, err, _ := s.sf.Do(cacheKey, func() (interface{}, error) {
+		emps, err := s.repo.FindOptionsByCompany(ctx, companyID)
+		if err != nil {
+			return nil, mapRepositoryError(err)
+		}
+
+		resp := mapToListResponse(emps)
+
+		// 3. Simpan ke Redis (TTL 1 jam cukup karena data master)
+		if s.rdb != nil {
+			if jsonData, err := json.Marshal(resp); err == nil {
+				s.rdb.Set(ctx, cacheKey, jsonData, 1*time.Hour)
+			}
+		}
+
+		return resp, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return v.([]EmployeeResponse), nil
 }
 
 func (s *service) GetByID(
@@ -258,6 +327,17 @@ func (s *service) Update(
 		s.logger.Error("update employee commit failed", zap.Error(err))
 		return EmployeeResponse{}, err
 	}
+
+	if s.rdb != nil {
+		cacheKey := GetEmployeeOptionsKey(companyID)
+		if err := s.rdb.Del(ctx, cacheKey).Err(); err != nil {
+			s.logger.Error("failed to invalidate employee options cache",
+				zap.Error(err),
+				zap.String("key", cacheKey),
+			)
+		}
+	}
+
 	s.logger.Info("update employee success", zap.String("employee_id", id))
 
 	return mapToResponse(*empl), nil
@@ -290,6 +370,17 @@ func (s *service) Delete(
 		s.logger.Error("delete employee commit failed", zap.Error(err))
 		return err
 	}
+
+	if s.rdb != nil {
+		cacheKey := GetEmployeeOptionsKey(companyID)
+		if err := s.rdb.Del(ctx, cacheKey).Err(); err != nil {
+			s.logger.Error("failed to invalidate employee options cache",
+				zap.Error(err),
+				zap.String("key", cacheKey),
+			)
+		}
+	}
+
 	s.logger.Info("delete employee success", zap.String("employee_id", id))
 	return nil
 }

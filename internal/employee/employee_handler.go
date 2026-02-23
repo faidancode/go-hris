@@ -122,6 +122,37 @@ func (h *Handler) GetAll(c *gin.Context) {
 	response.Success(c, http.StatusOK, resp[start:end], &meta)
 }
 
+func (h *Handler) GetOptions(c *gin.Context) {
+	ctx := c.Request.Context()
+	companyID := c.GetString("company_id")
+	h.logger.Debug("http get employee options", zap.String("company_id", companyID))
+
+	// Memanggil service yang sudah menggunakan Redis + Singleflight
+	resp, err := h.service.GetOptions(ctx, companyID)
+	if err != nil {
+		h.writeServiceError(c, err)
+		return
+	}
+
+	// Filter pencarian sederhana untuk dropdown (Client-side/Remote search support)
+	q := strings.TrimSpace(strings.ToLower(c.Query("q")))
+	if q != "" {
+		filtered := make([]EmployeeResponse, 0)
+		for _, e := range resp {
+			// Cek Nama atau Nomor Induk Karyawan
+			if strings.Contains(strings.ToLower(e.FullName), q) ||
+				strings.Contains(strings.ToLower(e.EmployeeNumber), q) {
+				filtered = append(filtered, e)
+			}
+		}
+		response.Success(c, http.StatusOK, filtered, nil)
+		return
+	}
+
+	// Return data tanpa meta pagination karena biasanya dropdown butuh data utuh/scroll
+	response.Success(c, http.StatusOK, resp, nil)
+}
+
 func (h *Handler) GetById(c *gin.Context) {
 	ctx := c.Request.Context()
 	targetID := c.Param("id")

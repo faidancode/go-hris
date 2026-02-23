@@ -3,8 +3,10 @@ package employee_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"go-hris/internal/employee"
 	employeeerrors "go-hris/internal/employee/errors"
@@ -14,6 +16,7 @@ import (
 	counterMock "go-hris/internal/shared/counter/mock"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/go-redis/redismock/v9"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
@@ -21,28 +24,31 @@ import (
 )
 
 type serviceDeps struct {
-	db      *sql.DB
-	sqlMock sqlmock.Sqlmock
-	service employee.Service
-	repo    *employeeMock.MockRepository
-	counter *counterMock.MockRepository
+	db        *sql.DB
+	sqlMock   sqlmock.Sqlmock
+	service   employee.Service
+	repo      *employeeMock.MockRepository
+	counter   *counterMock.MockRepository
+	redismock redismock.ClientMock
 }
 
 func setupServiceTest(t *testing.T) *serviceDeps {
 	ctrl := gomock.NewController(t)
 
 	db, sqlMock, _ := sqlmock.New()
+	dbRedis, redisMock := redismock.NewClientMock()
 	repo := employeeMock.NewMockRepository(ctrl)
 	counterRepo := counterMock.NewMockRepository(ctrl)
 
-	svc := employee.NewService(db, repo, counterRepo)
+	svc := employee.NewService(db, repo, counterRepo, dbRedis)
 
 	return &serviceDeps{
-		db:      db,
-		sqlMock: sqlMock,
-		service: svc,
-		repo:    repo,
-		counter: counterRepo,
+		db:        db,
+		sqlMock:   sqlMock,
+		service:   svc,
+		repo:      repo,
+		counter:   counterRepo,
+		redismock: redisMock,
 	}
 }
 
@@ -152,6 +158,124 @@ func TestEmployeeService_Create(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, employeeerrors.ErrEmployeeNumberAlreadyExists)
+	})
+}
+
+func TestEmployeeService_GetAll(t *testing.T) {
+	deps := setupServiceTest(t)
+	defer deps.db.Close()
+
+	ctx := context.Background()
+	companyID := uuid.New().String()
+
+	t.Run("success", func(t *testing.T) {
+		mockEmployees := []employee.Employee{
+			{ID: uuid.New(), FullName: "Andi", Email: "andi@comp.com"},
+			{ID: uuid.New(), FullName: "Budi", Email: "budi@comp.com"},
+		}
+
+		deps.repo.EXPECT().
+			FindAllByCompany(ctx, companyID).
+			Return(mockEmployees, nil).
+			Times(1)
+
+		resp, err := deps.service.GetAll(ctx, companyID)
+
+		assert.NoError(t, err)
+		assert.Len(t, resp, 2)
+		assert.Equal(t, "Andi", resp[0].FullName)
+	})
+
+	t.Run("error repository", func(t *testing.T) {
+		deps.repo.EXPECT().
+			FindAllByCompany(ctx, companyID).
+			Return(nil, errors.New("db error"))
+
+		resp, err := deps.service.GetAll(ctx, companyID)
+
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+	})
+}
+
+func TestEmployeeService_GetOptions(t *testing.T) {
+	deps := setupServiceTest(t)
+	defer deps.db.Close()
+
+	ctx := context.Background()
+	companyID := uuid.New().String()
+	// Menggunakan konstanta yang sesuai dengan implementasi service
+	cacheKey := employee.EmployeeOptionsKeyPrefix + companyID
+
+	t.Run("Hit Cache - Harus ambil data dari Redis", func(t *testing.T) {
+		expectedResp := []employee.EmployeeResponse{
+			{ID: uuid.New().String(), FullName: "Caca", EmployeeNumber: "EMP001"},
+		}
+		jsonResp, _ := json.Marshal(expectedResp)
+
+		deps.redismock.ExpectGet(cacheKey).SetVal(string(jsonResp))
+
+		resp, err := deps.service.GetOptions(ctx, companyID)
+
+		assert.NoError(t, err)
+		assert.Len(t, resp, 1)
+		assert.Equal(t, "Caca", resp[0].FullName)
+
+		// Memastikan DB tidak disentuh
+		deps.repo.EXPECT().FindOptionsByCompany(gomock.Any(), gomock.Any()).Times(0)
+	})
+
+	t.Run("Miss Cache - Harus ambil dari DB dan simpan ke Redis", func(t *testing.T) {
+		// Gunakan ID unik khusus untuk test case ini
+		companyID := uuid.New().String()
+		cacheKey := employee.EmployeeOptionsKeyPrefix + companyID
+
+		// 1. Mock Redis Get (Miss)
+		deps.redismock.ExpectGet(cacheKey).RedisNil()
+
+		// 2. Mock DB Data
+		mockEmployees := []employee.Employee{
+			{ID: uuid.New(), FullName: "Deni", EmployeeNumber: "EMP002"},
+		}
+
+		// 3. Mock Repo - Pastikan companyID MATCH
+		deps.repo.EXPECT().
+			FindOptionsByCompany(gomock.Any(), companyID).
+			Return(mockEmployees, nil).
+			Times(1)
+
+		// 4. Mock Redis Set
+		deps.redismock.ExpectSet(cacheKey, gomock.Any(), 1*time.Hour).SetVal("OK")
+
+		// Execution
+		resp, err := deps.service.GetOptions(ctx, companyID)
+
+		assert.NoError(t, err)
+		assert.Len(t, resp, 1)
+		assert.Equal(t, "Deni", resp[0].FullName)
+	})
+
+	t.Run("Database Error - Harus mengembalikan error", func(t *testing.T) {
+		// Gunakan ID unik yang berbeda agar tidak bentrok di Singleflight
+		companyID := uuid.New().String()
+		cacheKey := employee.EmployeeOptionsKeyPrefix + companyID
+
+		// 1. Mock Redis Get (Miss)
+		deps.redismock.ExpectGet(cacheKey).RedisNil()
+
+		// 2. Mock Repo Error
+		deps.repo.EXPECT().
+			FindOptionsByCompany(gomock.Any(), companyID).
+			Return(nil, errors.New("database connection lost")).
+			Times(1)
+
+		// Execution
+		resp, err := deps.service.GetOptions(ctx, companyID)
+
+		// Verifikasi
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "database connection lost")
 	})
 }
 

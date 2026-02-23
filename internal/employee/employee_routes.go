@@ -20,6 +20,13 @@ func RegisterRoutes(
 			middleware.RBACAuthorize(rbacService, "employee", "read"),
 			handler.GetAll,
 		)
+
+		employees.GET("/options",
+			middleware.RateLimitByUser(5, 20), // Limit sedikit lebih longgar karena ringan
+			middleware.RBACAuthorize(rbacService, "employee", "read"),
+			handler.GetOptions,
+		)
+
 		employees.GET("/:id",
 			middleware.RateLimitByUser(3, 10),
 			middleware.RBACAuthorize(rbacService, "employee", "read"),

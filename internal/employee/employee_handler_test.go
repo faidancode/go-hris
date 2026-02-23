@@ -18,11 +18,12 @@ import (
 )
 
 type fakeEmployeeService struct {
-	CreateFn  func(ctx context.Context, companyID string, req employee.CreateEmployeeRequest) (employee.EmployeeResponse, error)
-	GetAllFn  func(ctx context.Context, companyID string) ([]employee.EmployeeResponse, error)
-	GetByIDFn func(ctx context.Context, companyID, id string) (employee.EmployeeResponse, error)
-	UpdateFn  func(ctx context.Context, companyID, id string, req employee.UpdateEmployeeRequest) (employee.EmployeeResponse, error)
-	DeleteFn  func(ctx context.Context, companyID, id string) error
+	CreateFn     func(ctx context.Context, companyID string, req employee.CreateEmployeeRequest) (employee.EmployeeResponse, error)
+	GetAllFn     func(ctx context.Context, companyID string) ([]employee.EmployeeResponse, error)
+	GetOptionsFn func(ctx context.Context, companyID string) ([]employee.EmployeeResponse, error)
+	GetByIDFn    func(ctx context.Context, companyID, id string) (employee.EmployeeResponse, error)
+	UpdateFn     func(ctx context.Context, companyID, id string, req employee.UpdateEmployeeRequest) (employee.EmployeeResponse, error)
+	DeleteFn     func(ctx context.Context, companyID, id string) error
 }
 
 func (f *fakeEmployeeService) Create(ctx context.Context, companyID string, req employee.CreateEmployeeRequest) (employee.EmployeeResponse, error) {
@@ -30,6 +31,9 @@ func (f *fakeEmployeeService) Create(ctx context.Context, companyID string, req 
 }
 func (f *fakeEmployeeService) GetAll(ctx context.Context, companyID string) ([]employee.EmployeeResponse, error) {
 	return f.GetAllFn(ctx, companyID)
+}
+func (f *fakeEmployeeService) GetOptions(ctx context.Context, companyID string) ([]employee.EmployeeResponse, error) {
+	return f.GetOptionsFn(ctx, companyID)
 }
 func (f *fakeEmployeeService) GetByID(ctx context.Context, companyID, id string) (employee.EmployeeResponse, error) {
 	return f.GetByIDFn(ctx, companyID, id)
@@ -191,8 +195,6 @@ func TestEmployeeHandler_Create(t *testing.T) {
 }
 
 func TestEmployeeHandler_GetAll(t *testing.T) {
-	// Kita tidak butuh mockRBAC di sini jika mengetes handler secara langsung,
-	// karena middleware RBACAuthorize ada di RegisterRoutes, bukan di dalam Handler.
 
 	t.Run("success", func(t *testing.T) {
 		companyID := uuid.New().String()
@@ -243,6 +245,82 @@ func TestEmployeeHandler_GetAll(t *testing.T) {
 
 		h.GetAll(c)
 
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+func TestEmployeeHandler_GetOptions(t *testing.T) {
+	t.Run("success - return all options", func(t *testing.T) {
+		companyID := uuid.New().String()
+		expectedData := []employee.EmployeeResponse{
+			{ID: uuid.New().String(), FullName: "Alice Smith", EmployeeNumber: "EMP001"},
+			{ID: uuid.New().String(), FullName: "Bob Wilson", EmployeeNumber: "EMP002"},
+		}
+
+		svc := &fakeEmployeeService{
+			GetOptionsFn: func(ctx context.Context, cid string) ([]employee.EmployeeResponse, error) {
+				assert.Equal(t, companyID, cid)
+				return expectedData, nil
+			},
+		}
+
+		h := employee.NewHandler(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest(http.MethodGet, "/employees/options", nil)
+		c.Set("company_id", companyID)
+
+		h.GetOptions(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "Alice Smith")
+		assert.Contains(t, w.Body.String(), "EMP002")
+	})
+
+	t.Run("success - filter by query q", func(t *testing.T) {
+		companyID := uuid.New().String()
+		svc := &fakeEmployeeService{
+			GetOptionsFn: func(ctx context.Context, cid string) ([]employee.EmployeeResponse, error) {
+				return []employee.EmployeeResponse{
+					{ID: "1", FullName: "Alice Smith", EmployeeNumber: "EMP001"},
+					{ID: "2", FullName: "Bob Wilson", EmployeeNumber: "EMP002"},
+				}, nil
+			},
+		}
+
+		h := employee.NewHandler(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		// Simulasi query pencarian ?q=alice
+		c.Request = httptest.NewRequest(http.MethodGet, "/employees/options?q=alice", nil)
+		c.Set("company_id", companyID)
+
+		h.GetOptions(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "Alice Smith")
+		assert.NotContains(t, w.Body.String(), "Bob Wilson")
+	})
+
+	t.Run("service error", func(t *testing.T) {
+		svc := &fakeEmployeeService{
+			GetOptionsFn: func(ctx context.Context, cid string) ([]employee.EmployeeResponse, error) {
+				return nil, errors.New("redis connection failed")
+			},
+		}
+
+		h := employee.NewHandler(svc)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest(http.MethodGet, "/employees/options", nil)
+		c.Set("company_id", uuid.New().String())
+
+		h.GetOptions(c)
+
+		// Pastikan writeServiceError bekerja (mengembalikan 500 jika error umum)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }

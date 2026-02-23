@@ -12,11 +12,12 @@ import (
 //go:generate mockgen -source=employee_repo.go -destination=mock/employee_repo_mock.go -package=mock
 type Repository interface {
 	WithTx(tx *sql.Tx) Repository
-	Create(ctx context.Context, dept *Employee) error
+	Create(ctx context.Context, emp *Employee) error
 	FindAllByCompany(ctx context.Context, companyID string) ([]Employee, error)
+	FindOptionsByCompany(ctx context.Context, companyID string) ([]Employee, error)
 	FindByIDAndCompany(ctx context.Context, companyID string, id string) (*Employee, error)
 	GetDepartmentIDByPosition(ctx context.Context, companyID, positionID string) (string, error)
-	Update(ctx context.Context, dept *Employee) error
+	Update(ctx context.Context, emp *Employee) error
 	Delete(ctx context.Context, companyID string, id string) error
 }
 
@@ -36,7 +37,7 @@ func (r *repository) WithTx(tx *sql.Tx) Repository {
 	}
 }
 
-func (r *repository) Create(ctx context.Context, dept *Employee) error {
+func (r *repository) Create(ctx context.Context, emp *Employee) error {
 	if r.tx != nil {
 		query := `
 INSERT INTO employees (
@@ -55,47 +56,57 @@ INSERT INTO employees (
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `
 		now := time.Now().UTC()
-		if dept.CreatedAt.IsZero() {
-			dept.CreatedAt = now
+		if emp.CreatedAt.IsZero() {
+			emp.CreatedAt = now
 		}
-		dept.UpdatedAt = now
+		emp.UpdatedAt = now
 		_, err := r.tx.ExecContext(
 			ctx,
 			query,
-			dept.ID,
-			dept.CompanyID,
-			dept.DepartmentID,
-			dept.PositionID,
-			dept.EmployeeNumber,
-			dept.FullName,
-			dept.Email,
-			dept.Phone,
-			dept.HireDate,
-			dept.EmploymentStatus,
-			dept.CreatedAt,
-			dept.UpdatedAt,
+			emp.ID,
+			emp.CompanyID,
+			emp.DepartmentID,
+			emp.PositionID,
+			emp.EmployeeNumber,
+			emp.FullName,
+			emp.Email,
+			emp.Phone,
+			emp.HireDate,
+			emp.EmploymentStatus,
+			emp.CreatedAt,
+			emp.UpdatedAt,
 		)
 		return err
 	}
-	return r.db.WithContext(ctx).Create(dept).Error
+	return r.db.WithContext(ctx).Create(emp).Error
 }
 
 func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]Employee, error) {
-	var depts []Employee
+	var emps []Employee
 	err := r.db.WithContext(ctx).
 		Scopes(tenant.Scope(companyID)).
-		Find(&depts).Error
-	return depts, err
+		Find(&emps).Error
+	return emps, err
+}
+
+func (r *repository) FindOptionsByCompany(ctx context.Context, companyID string) ([]Employee, error) {
+	var emps []Employee
+	err := r.db.WithContext(ctx).
+		Scopes(tenant.Scope(companyID)).
+		Select("id", "employee_number", "full_name"). // Hanya ambil field yang diperlukan
+		Order("full_name ASC").
+		Find(&emps).Error
+	return emps, err
 }
 
 func (r *repository) FindByIDAndCompany(ctx context.Context, companyID string, id string) (*Employee, error) {
-	var dept Employee
+	var emp Employee
 	err := r.db.WithContext(ctx).
 		Preload("Position").
 		Preload("Department").
 		Scopes(tenant.Scope(companyID)).
-		First(&dept, "id = ?", id).Error
-	return &dept, err
+		First(&emp, "id = ?", id).Error
+	return &emp, err
 }
 
 func (r *repository) GetDepartmentIDByPosition(ctx context.Context, companyID, positionID string) (string, error) {
@@ -127,8 +138,8 @@ LIMIT 1
 	return departmentID, err
 }
 
-func (r *repository) Update(ctx context.Context, dept *Employee) error {
-	return r.db.WithContext(ctx).Save(dept).Error
+func (r *repository) Update(ctx context.Context, emp *Employee) error {
+	return r.db.WithContext(ctx).Save(emp).Error
 }
 
 func (r *repository) Delete(ctx context.Context, companyID string, id string) error {
