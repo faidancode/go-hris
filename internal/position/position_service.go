@@ -88,10 +88,10 @@ func (s *service) GetAll(
 	ctx context.Context,
 	companyID string,
 ) ([]PositionResponse, error) {
-	// 1. Definisikan Key yang unik per Company
+	// Definisikan Key yang unik per Company
 	cacheKey := fmt.Sprintf("positions:all:%s", companyID)
 
-	// 2. Coba ambil dari Redis
+	// Coba ambil dari Redis
 	if s.rdb != nil {
 		cached, err := s.rdb.Get(ctx, cacheKey).Result()
 		if err == nil {
@@ -102,7 +102,7 @@ func (s *service) GetAll(
 		}
 	}
 
-	// 3. Gunakan Singleflight untuk mencegah query berulang ke DB
+	// Gunakan Singleflight untuk mencegah query berulang ke DB
 	v, err, _ := s.sf.Do(cacheKey, func() (interface{}, error) {
 		// Query ke Database
 		positions, err := s.repo.FindAllByCompany(ctx, companyID)
@@ -112,7 +112,7 @@ func (s *service) GetAll(
 
 		resp := mapToListResponse(positions)
 
-		// 4. Simpan ke Redis (TTL 30 Menit - 1 Jam cukup untuk data Master)
+		// Simpan ke Redis (TTL 30 Menit - 1 Jam cukup untuk data Master)
 		if s.rdb != nil {
 			if jsonData, err := json.Marshal(resp); err == nil {
 				s.rdb.Set(ctx, cacheKey, jsonData, 30*time.Minute)
