@@ -16,6 +16,7 @@ const (
 
 type OutboxEvent struct {
 	ID            string
+	RequestID     string
 	AggregateType string
 	AggregateID   string
 	EventType     string
@@ -25,6 +26,8 @@ type OutboxEvent struct {
 	RetryCount    int
 	NextRetryAt   time.Time
 }
+
+//go:generate mockgen -source=outbox_repo.go -destination=mock/outbox_repo_mock.go -package=mock
 
 type OutboxRepository interface {
 	WithTx(tx *sql.Tx) OutboxRepository
@@ -49,28 +52,16 @@ func (r *outboxRepository) WithTx(tx *sql.Tx) OutboxRepository {
 
 func (r *outboxRepository) Create(ctx context.Context, event OutboxEvent) error {
 	query := `
-INSERT INTO outbox_events (
-	id,
-	aggregate_type,
-	aggregate_id,
-	event_type,
-	topic,
-	payload,
-	status
-) VALUES ($1, $2, $3, $4, $5, $6, $7)
-`
+        INSERT INTO outbox_events (
+            id, request_id, aggregate_type, aggregate_id, event_type, topic, payload, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `
 
 	exec := r.execer()
 	_, err := exec.ExecContext(
-		ctx,
-		query,
-		event.ID,
-		event.AggregateType,
-		event.AggregateID,
-		event.EventType,
-		event.Topic,
-		event.Payload,
-		event.Status,
+		ctx, query,
+		event.ID, event.RequestID, event.AggregateType,
+		event.AggregateID, event.EventType, event.Topic, event.Payload, event.Status,
 	)
 	return err
 }

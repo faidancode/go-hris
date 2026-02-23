@@ -10,9 +10,13 @@ import (
 
 	"go-hris/internal/employee"
 	employeeerrors "go-hris/internal/employee/errors"
+	"go-hris/internal/events"
 	"go-hris/internal/shared/apperror"
+	"go-hris/internal/shared/contextutil"
 
 	employeeMock "go-hris/internal/employee/mock"
+	"go-hris/internal/messaging/kafka"
+	kafkaMock "go-hris/internal/messaging/kafka/mock"
 	counterMock "go-hris/internal/shared/counter/mock"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -30,6 +34,7 @@ type serviceDeps struct {
 	repo      *employeeMock.MockRepository
 	counter   *counterMock.MockRepository
 	redismock redismock.ClientMock
+	outbox    *kafkaMock.MockOutboxRepository
 }
 
 func setupServiceTest(t *testing.T) *serviceDeps {
@@ -39,8 +44,10 @@ func setupServiceTest(t *testing.T) *serviceDeps {
 	dbRedis, redisMock := redismock.NewClientMock()
 	repo := employeeMock.NewMockRepository(ctrl)
 	counterRepo := counterMock.NewMockRepository(ctrl)
+	outboxRepo := kafkaMock.NewMockOutboxRepository(ctrl)
 
-	svc := employee.NewService(db, repo, counterRepo, dbRedis)
+	// Inject ke Service
+	svc := employee.NewServiceWithOutbox(db, repo, counterRepo, outboxRepo, dbRedis)
 
 	return &serviceDeps{
 		db:        db,
@@ -48,6 +55,7 @@ func setupServiceTest(t *testing.T) *serviceDeps {
 		service:   svc,
 		repo:      repo,
 		counter:   counterRepo,
+		outbox:    outboxRepo, // Simpan ke deps untuk dipakai di EXPECT()
 		redismock: redisMock,
 	}
 }
@@ -106,11 +114,72 @@ func TestEmployeeService_Create(t *testing.T) {
 				return nil
 			})
 
+			// Mock Outbox WithTx (Wajib karena dipanggil di service)
+		deps.outbox.EXPECT().
+			WithTx(gomock.Any()).
+			Return(deps.outbox)
+
+		// Mock Outbox Create
+		deps.outbox.EXPECT().
+			Create(gomock.Any(), gomock.Any()).
+			Return(nil).
+			Times(1)
+
+		// Jangan lupa mock Redis jika di service Anda ada pemanggilan s.rdb.Del
+		deps.redismock.ExpectDel(employee.GetEmployeeOptionsKey(companyID)).SetVal(1)
+
 		resp, err := deps.service.Create(ctx, companyID, req)
 
 		assert.NoError(t, err)
 		assert.Equal(t, deptID.String(), resp.ID)
 		assert.Equal(t, "EMP-000123", resp.EmployeeNumber)
+	})
+
+	t.Run("success - should persist to outbox with request id", func(t *testing.T) {
+		deps := setupServiceTest(t)
+		defer deps.db.Close()
+
+		// 1. Setup Context & Request ID
+		rid := "REQ-123-ABC"
+		ctx := contextutil.WithRequestID(context.Background(), rid)
+
+		companyID := uuid.New().String()
+		req := employee.CreateEmployeeRequest{
+			FullName:   "John Doe",
+			Email:      "john@example.com",
+			PositionID: uuid.New().String(),
+			HireDate:   "2026-01-01",
+		}
+
+		// 2. Mock Transactional Behavior
+		expectTx(t, deps.sqlMock, true)
+
+		// Repo standard mocks
+		deps.repo.EXPECT().WithTx(gomock.Any()).Return(deps.repo).AnyTimes()
+		deps.repo.EXPECT().GetDepartmentIDByPosition(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(uuid.New().String(), nil)
+		deps.counter.EXPECT().GetNextValue(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(int64(1), nil)
+		deps.repo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil)
+
+		// 3. Mock Outbox dengan Chaining WithTx
+		// Step A: Mock WithTx(tx) yang mengembalikan mock repository itu sendiri
+		deps.outbox.EXPECT().
+			WithTx(gomock.Any()).
+			Return(deps.outbox)
+
+		// Step B: Verifikasi payload OutboxEvent
+		deps.outbox.EXPECT().
+			Create(gomock.Any(), MatchOutboxWithRID(rid)). // Menggunakan Custom Matcher
+			Return(nil).
+			Times(1)
+		// 4. Redis Invalidation Mock
+		deps.redismock.ExpectDel(employee.GetEmployeeOptionsKey(companyID)).SetVal(1)
+
+		// Execution
+		_, err := deps.service.Create(ctx, companyID, req)
+
+		assert.NoError(t, err)
 	})
 
 	t.Run("repo error -> rollback", func(t *testing.T) {
@@ -463,4 +532,38 @@ func TestEmployeeService_Delete(t *testing.T) {
 		assert.Error(t, err)
 		assert.NoError(t, deps.sqlMock.ExpectationsWereMet())
 	})
+}
+
+// Helper
+type outboxRequestIDMatcher struct {
+	expectedRID string
+}
+
+func (m outboxRequestIDMatcher) Matches(x any) bool {
+	event, ok := x.(kafka.OutboxEvent)
+	if !ok {
+		return false
+	}
+
+	// Cek RequestID di kolom struct
+	if event.RequestID != m.expectedRID {
+		return false
+	}
+
+	// Cek RequestID di dalam JSON Payload
+	var payload events.EmployeeCreatedEvent
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		return false
+	}
+
+	return payload.RequestID == m.expectedRID
+}
+
+func (m outboxRequestIDMatcher) String() string {
+	return "matches outbox event with request_id " + m.expectedRID
+}
+
+// Helper function agar pemanggilannya cantik
+func MatchOutboxWithRID(rid string) gomock.Matcher {
+	return outboxRequestIDMatcher{expectedRID: rid}
 }

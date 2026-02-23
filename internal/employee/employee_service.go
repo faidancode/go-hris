@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go-hris/internal/events"
 	"go-hris/internal/messaging/kafka"
+	"go-hris/internal/shared/contextutil"
 	"go-hris/internal/shared/counter"
 	"time"
 
@@ -74,7 +75,9 @@ func (s *service) Create(
 	companyID string,
 	req CreateEmployeeRequest,
 ) (EmployeeResponse, error) {
+	rid := contextutil.GetRequestID(ctx)
 	s.logger.Debug("create employee requested",
+		zap.String("request_id", rid), // Propagasi ke logs
 		zap.String("company_id", companyID),
 		zap.String("position_id", req.PositionID),
 		zap.String("email", req.Email),
@@ -82,7 +85,7 @@ func (s *service) Create(
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		s.logger.Error("create employee begin tx failed", zap.Error(err))
+		s.logger.Error("create employee begin tx failed", zap.String("request_id", rid), zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 	defer tx.Rollback()
@@ -139,6 +142,7 @@ func (s *service) Create(
 
 	event := events.EmployeeCreatedEvent{
 		EventType:  "employee_created",
+		RequestID:  rid, // Propagasi ke async events
 		EmployeeID: empl.ID.String(),
 		CompanyID:  companyID,
 		OccurredAt: time.Now().UTC(),
@@ -146,13 +150,14 @@ func (s *service) Create(
 	if s.outbox != nil {
 		payload, err := json.Marshal(event)
 		if err != nil {
-			s.logger.Error("marshal employee_created event failed", zap.Error(err))
+			s.logger.Error("marshal event failed", zap.String("request_id", rid), zap.Error(err))
 			return EmployeeResponse{}, err
 		}
 
 		outboxRepo := s.outbox.WithTx(tx)
 		if err := outboxRepo.Create(ctx, kafka.OutboxEvent{
 			ID:            uuid.NewString(),
+			RequestID:     rid,
 			AggregateType: "employee",
 			AggregateID:   empl.ID.String(),
 			EventType:     event.EventType,
@@ -169,7 +174,7 @@ func (s *service) Create(
 	}
 
 	if err := tx.Commit(); err != nil {
-		s.logger.Error("create employee commit failed", zap.Error(err))
+		s.logger.Error("commit failed", zap.String("request_id", rid), zap.Error(err))
 		return EmployeeResponse{}, err
 	}
 
@@ -188,7 +193,10 @@ func (s *service) Create(
 			zap.String("employee_id", empl.ID.String()),
 		)
 	}
-	s.logger.Info("create employee success", zap.String("employee_id", empl.ID.String()))
+	s.logger.Info("create employee success",
+		zap.String("request_id", rid),
+		zap.String("employee_id", empl.ID.String()),
+	)
 
 	return mapToResponse(*empl), nil
 }

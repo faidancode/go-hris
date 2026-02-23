@@ -6,6 +6,7 @@ import (
 
 	"go-hris/internal/app"
 	"go-hris/internal/bootstrap"
+	"go-hris/internal/middleware"
 	"go-hris/internal/shared/apperror"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,8 @@ func main() {
 
 	apperror.Init()
 	r := gin.Default()
+
+	r.Use(middleware.RequestID())
 
 	// build dependency + routes
 	if err := app.BuildApp(r); err != nil {
