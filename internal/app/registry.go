@@ -20,6 +20,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -28,6 +29,7 @@ func registerModules(
 	db *sql.DB,
 	gormDB *gorm.DB,
 	rdb *redis.Client,
+	logger *zap.Logger,
 ) error {
 
 	// --- Repositories ---
@@ -81,7 +83,7 @@ func registerModules(
 		auth.RegisterRoutes(api, authHandler)
 		attendance.RegisterRoutes(api, attendanceHandler, rbacService)
 		department.RegisterRoutes(api, departmentHandler, rbacService)
-		employee.RegisterRoutes(api, employeeHandler, rbacService)
+		employee.RegisterRoutes(api, employeeHandler, rbacService, logger)
 		employeesalary.RegisterRoutes(api, employeeSalaryHandler, rbacService)
 		leave.RegisterRoutes(api, leaveHandler, rbacService)
 		payroll.RegisterRoutes(api, payrollHandler, rbacService, rdb)

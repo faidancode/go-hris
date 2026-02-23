@@ -14,6 +14,6 @@ func RegisterRoutes(r *gin.RouterGroup, handler *Handler) {
 		auth.POST("/refresh", handler.RefreshToken)
 		auth.POST("/logout", middleware.RateLimitByUser(2, 5), handler.Logout)
 		auth.POST("/register", middleware.RateLimitByUser(2, 5), handler.Register)
-		auth.POST("/register", middleware.RateLimitByIP(0.1, 1), handler.Register)
+		auth.POST("/register-company", middleware.RateLimitByIP(0.1, 1), handler.RegisterCompany)
 	}
 }

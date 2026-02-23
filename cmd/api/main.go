@@ -24,12 +24,13 @@ func main() {
 	zap.ReplaceGlobals(logger)
 
 	apperror.Init()
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
 
 	r.Use(middleware.RequestID())
 
 	// build dependency + routes
-	if err := app.BuildApp(r); err != nil {
+	if err := app.BuildApp(r, logger); err != nil {
 		logger.Fatal("build app failed", zap.Error(err))
 	}
 

@@ -5,15 +5,18 @@ import (
 	"go-hris/internal/rbac"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func RegisterRoutes(
 	r *gin.RouterGroup,
 	handler *Handler,
 	rbacService rbac.Service,
+	logger *zap.Logger,
 ) {
 	employees := r.Group("/employees")
 	employees.Use(middleware.AuthMiddleware())
+	employees.Use(middleware.ContextLogger(logger))
 	{
 		employees.GET("",
 			middleware.RateLimitByUser(3, 10),

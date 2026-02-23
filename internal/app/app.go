@@ -8,9 +8,10 @@ import (
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
-func BuildApp(router *gin.Engine) error {
+func BuildApp(router *gin.Engine, logger *zap.Logger) error {
 	// 1. Setup Infrastructure
 	gormDB, err := connection.ConnectGORMWithRetry(
 		os.Getenv("DB_HOST"),
@@ -43,7 +44,7 @@ func BuildApp(router *gin.Engine) error {
 	log.Println("Redis connection established")
 
 	// Register Modules & Routes
-	if err := registerModules(router, sqlDB, gormDB, redisClient); err != nil {
+	if err := registerModules(router, sqlDB, gormDB, redisClient, logger); err != nil {
 		return err
 	}
 
