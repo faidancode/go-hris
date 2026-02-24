@@ -18,7 +18,7 @@ func ContextLogger(logger *zap.Logger) gin.HandlerFunc {
 		c.Header("X-Request-ID", rid)
 
 		// 2. Handle User ID (diambil dari middleware Auth sebelumnya)
-		uid := c.GetString("user_id_validated")
+		uid := c.GetString("user_id")
 
 		// 3. Buat Scoped Logger yang sudah ditempeli Metadata
 		// Logger ini yang akan digunakan di sepanjang request ini

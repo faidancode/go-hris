@@ -55,13 +55,18 @@ func WithLogger(ctx context.Context, logger *zap.Logger) context.Context {
 // GetLogger mengambil logger dari context.
 // Jika tidak ada, mengembalikan fallback (defaultLogger) agar tidak panic.
 func GetLogger(ctx context.Context, defaultLogger *zap.Logger) *zap.Logger {
-	if ctx == nil {
+	if ctx != nil {
+		if l, ok := ctx.Value(loggerKey).(*zap.Logger); ok && l != nil {
+			return l
+		}
+	}
+
+	if defaultLogger != nil {
 		return defaultLogger
 	}
-	if l, ok := ctx.Value(loggerKey).(*zap.Logger); ok {
-		return l
-	}
-	return defaultLogger
+
+	// safety fallback agar tidak pernah nil
+	return zap.NewNop()
 }
 
 // --- Combined Metadata (Optional but Useful) ---

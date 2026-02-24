@@ -74,7 +74,7 @@ func (ctrl *Handler) Me(c *gin.Context) {
 	// asumsi middleware sudah set userID di context
 	log.Printf("auth context: %+v\n", c.Keys)
 
-	userID, ok := c.Get("user_id_validated")
+	userID, ok := c.Get("user_id")
 	if !ok {
 		response.Error(c, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized", nil)
 		return

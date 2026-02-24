@@ -27,7 +27,7 @@ func (h *Handler) ClockIn(c *gin.Context) {
 	companyID := c.GetString("company_id")
 	employeeID := c.GetString("employee_id")
 	if employeeID == "" {
-		employeeID = c.GetString("user_id_validated")
+		employeeID = c.GetString("user_id")
 	}
 
 	var req ClockInRequest
@@ -48,7 +48,7 @@ func (h *Handler) ClockOut(c *gin.Context) {
 	companyID := c.GetString("company_id")
 	employeeID := c.GetString("employee_id")
 	if employeeID == "" {
-		employeeID = c.GetString("user_id_validated")
+		employeeID = c.GetString("user_id")
 	}
 
 	var req ClockOutRequest
@@ -69,7 +69,7 @@ func (h *Handler) GetAll(c *gin.Context) {
 	companyID := c.GetString("company_id")
 	actorID := c.GetString("employee_id")
 	if actorID == "" {
-		actorID = c.GetString("user_id_validated")
+		actorID = c.GetString("user_id")
 	}
 	role := strings.ToUpper(strings.TrimSpace(c.GetString("role")))
 	hasReadAll := c.GetBool("has_read_all")

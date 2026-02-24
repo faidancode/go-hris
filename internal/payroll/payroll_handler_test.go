@@ -104,7 +104,7 @@ func TestPayrollHandler_Create(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/payrolls", strings.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
 	c.Set("company_id", companyID)
-	c.Set("user_id_validated", actorID)
+	c.Set("user_id", actorID)
 
 	h.Create(c)
 

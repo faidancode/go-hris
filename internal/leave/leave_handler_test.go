@@ -73,7 +73,7 @@ func (f *fakeLeaveService) Delete(ctx context.Context, companyID, id string) err
 }
 
 func TestLeaveHandler_Create(t *testing.T) {
-	t.Run("success uses user_id_validated fallback", func(t *testing.T) {
+	t.Run("success uses user_id fallback", func(t *testing.T) {
 		companyID := uuid.New().String()
 		actorID := uuid.New().String()
 		employeeID := uuid.New().String()
@@ -105,7 +105,7 @@ func TestLeaveHandler_Create(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPost, "/leaves", strings.NewReader(body))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Set("company_id", companyID)
-		c.Set("user_id_validated", actorID)
+		c.Set("user_id", actorID)
 
 		h.Create(c)
 
@@ -484,7 +484,7 @@ func TestLeaveHandler_SubmitApproveReject(t *testing.T) {
 		assert.Equal(t, leave.StatusSubmitted, got.Status)
 	})
 
-	t.Run("approve success uses user_id_validated fallback", func(t *testing.T) {
+	t.Run("approve success uses user_id fallback", func(t *testing.T) {
 		companyID := uuid.New().String()
 		actorID := uuid.New().String()
 		leaveID := uuid.New().String()
@@ -502,7 +502,7 @@ func TestLeaveHandler_SubmitApproveReject(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPost, "/leaves/"+leaveID+"/approve", nil)
 		c.Params = []gin.Param{{Key: "id", Value: leaveID}}
 		c.Set("company_id", companyID)
-		c.Set("user_id_validated", actorID)
+		c.Set("user_id", actorID)
 
 		h.Approve(c)
 

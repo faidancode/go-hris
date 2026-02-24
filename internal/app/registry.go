@@ -16,6 +16,7 @@ import (
 	"go-hris/internal/rbac/infra"
 	"go-hris/internal/rbac/rbac_http"
 	"go-hris/internal/shared/counter"
+	"go-hris/internal/user"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +46,7 @@ func registerModules(
 	positionRepo := position.NewRepository(gormDB)
 	counterRepo := counter.NewRepository(gormDB)
 	companyRepo := company.NewRepository(gormDB)
+	userRepo := user.NewRepository(gormDB)
 
 	// --- RBAC Core ---
 	enforcer, err := infra.NewEnforcer(filepath.Join("internal", "rbac", "infra", "model.conf"))
@@ -63,6 +65,7 @@ func registerModules(
 	leaveService := leave.NewService(db, leaveRepo)
 	payrollService := payroll.NewServiceWithOutbox(db, payrollRepo, outboxRepo)
 	positionService := position.NewService(db, positionRepo, rdb)
+	userService := user.NewService(userRepo)
 
 	// --- Handlers ---
 	companyHandler := company.NewHandler(companyService)
@@ -74,6 +77,7 @@ func registerModules(
 	leaveHandler := leave.NewHandler(leaveService)
 	payrollHandler := payroll.NewHandlerWithRedis(payrollService, rdb)
 	positionHandler := position.NewHandler(positionService)
+	userHandler := user.NewHandler(userService)
 	rbacHandler := rbac.NewHandler(rbacService)
 
 	// --- Routes Registration ---
@@ -88,6 +92,7 @@ func registerModules(
 		leave.RegisterRoutes(api, leaveHandler, rbacService)
 		payroll.RegisterRoutes(api, payrollHandler, rbacService, rdb)
 		position.RegisterRoutes(api, positionHandler, rbacService)
+		user.RegisterRoutes(api, userHandler, rbacService, logger)
 		rbac_http.RegisterRoutes(api, rbacHandler, rbacService)
 	}
 

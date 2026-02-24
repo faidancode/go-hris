@@ -27,7 +27,7 @@ func NewHandler(service Service, logger ...*zap.Logger) *Handler {
 func getActorID(c *gin.Context) string {
 	actorID := c.GetString("employee_id")
 	if actorID == "" {
-		actorID = c.GetString("user_id_validated")
+		actorID = c.GetString("user_id")
 	}
 	return actorID
 }
