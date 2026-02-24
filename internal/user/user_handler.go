@@ -163,7 +163,7 @@ func (h *Handler) ToggleStatus(c *gin.Context) {
 	id := c.Param("id")
 
 	var body struct {
-		IsActive bool `json:"is_active" binding:"required"`
+		IsActive *bool `json:"is_active" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -177,7 +177,7 @@ func (h *Handler) ToggleStatus(c *gin.Context) {
 
 	ctx := contextutil.WithLogger(c.Request.Context(), h.logger)
 
-	if err := h.svc.ToggleStatus(ctx, companyID, id, body.IsActive); err != nil {
+	if err := h.svc.ToggleStatus(ctx, companyID, id, *body.IsActive); err != nil {
 		writeError(c, err)
 		return
 	}

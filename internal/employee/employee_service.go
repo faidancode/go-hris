@@ -18,7 +18,7 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-const EmployeeOptionsKeyPrefix = "employees:options:"
+const EmployeeOptionsKeyPrefix = "employees:options:v2:"
 
 func GetEmployeeOptionsKey(companyID string) string {
 	return EmployeeOptionsKeyPrefix + companyID
@@ -217,7 +217,7 @@ func (s *service) GetAll(
 }
 
 func (s *service) GetOptions(ctx context.Context, companyID string) ([]EmployeeResponse, error) {
-	cacheKey := EmployeeOptionsKeyPrefix + companyID
+	cacheKey := GetEmployeeOptionsKey(companyID)
 
 	// 1. Cek Redis
 	if s.rdb != nil {
@@ -236,7 +236,7 @@ func (s *service) GetOptions(ctx context.Context, companyID string) ([]EmployeeR
 			return nil, mapRepositoryError(err)
 		}
 
-		resp := mapToListResponse(emps)
+		resp := mapToOptionListResponse(emps)
 
 		// 3. Simpan ke Redis (TTL 1 jam cukup karena data master)
 		if s.rdb != nil {
@@ -426,6 +426,19 @@ func mapToListResponse(depts []Employee) []EmployeeResponse {
 	res := make([]EmployeeResponse, len(depts))
 	for i, d := range depts {
 		res[i] = mapToResponse(d)
+	}
+	return res
+}
+
+func mapToOptionListResponse(emps []Employee) []EmployeeResponse {
+	res := make([]EmployeeResponse, len(emps))
+	for i, e := range emps {
+		res[i] = EmployeeResponse{
+			ID:             e.ID.String(),
+			EmployeeNumber: e.EmployeeNumber,
+			FullName:       e.FullName,
+			Email:          e.Email,
+		}
 	}
 	return res
 }

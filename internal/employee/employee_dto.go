@@ -26,9 +26,9 @@ type EmployeeResponse struct {
 	Email            string                      `json:"email"`
 	EmployeeNumber   string                      `json:"employee_number"`
 	Phone            string                      `json:"phone,omitempty"`
-	HireDate         string                      `json:"hire_date"`
-	EmploymentStatus string                      `json:"employment_status"`
-	CompanyID        string                      `json:"company_id"`
+	HireDate         string                      `json:"hire_date,omitempty"`
+	EmploymentStatus string                      `json:"employment_status,omitempty"`
+	CompanyID        string                      `json:"company_id,omitempty"`
 	DepartmentID     string                      `json:"department_id,omitempty"`
 	PositionID       string                      `json:"position_id,omitempty"`
 	Department       *EmployeeDepartmentResponse `json:"department,omitempty"`

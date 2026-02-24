@@ -9,7 +9,10 @@ import (
 
 type User struct {
 	ID         uuid.UUID      `gorm:"column:id;type:uuid;primaryKey;default:gen_random_uuid()"`
+	CompanyID  uuid.UUID      `gorm:"column:company_id;type:uuid;not null;index"`
 	EmployeeID uuid.UUID      `gorm:"column:employee_id;type:uuid;not null"`
+	Name       string         `gorm:"column:name;type:varchar(255)"`
+	Role       string         `gorm:"column:role;type:varchar(50);default:EMPLOYEE"`
 	Email      string         `gorm:"column:email;type:text;not null;uniqueIndex"`
 	Password   string         `gorm:"column:password;type:text;not null"`
 	IsActive   bool           `gorm:"column:is_active;default:true"`

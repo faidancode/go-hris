@@ -9,6 +9,10 @@ MIGRATE=migrate
 MIGRATIONS_PATH=internal/shared/database/migrations
 GO=go
 
+REDIS_HOST = $(shell echo $(REDIS_ADDR) | cut -d':' -f1)
+REDIS_PORT = $(shell echo $(REDIS_ADDR) | cut -d':' -f2)
+REDIS_CMD = redis-cli -h $(REDIS_HOST) -p $(REDIS_PORT)
+
 # =========================
 # HELP
 # =========================
@@ -179,3 +183,29 @@ reset-seed:
 .PHONY: swag
 swag:
 	swag init -g cmd/api/main.go	
+
+# =========================
+# Redis
+# =========================
+
+## redis-flush: Menghapus cache pada database saat ini (FLUSHDB)
+redis-flush:
+	@echo "Menghubungkan ke Redis di $(REDIS_HOST):$(REDIS_PORT)..."
+	@$(REDIS_CMD) FLUSHDB
+	@echo "✓ Cache database saat ini telah dibersihkan."
+
+## redis-flush-all: Menghapus seluruh data di semua database (FLUSHALL)
+redis-flush-all:
+	@echo "Menghubungkan ke Redis di $(REDIS_HOST):$(REDIS_PORT)..."
+	@$(REDIS_CMD) FLUSHALL
+	@echo "✓ Seluruh data Redis (All DBs) telah dibersihkan."
+
+## redis-clear-pattern: Hapus berdasarkan pola. Contoh: make redis-clear-pattern KEY="user:*"
+redis-clear-pattern:
+	@if [ -z "$(KEY)" ]; then \
+		echo "Error: Masukkan parameter KEY. Contoh: make redis-clear-pattern KEY='prefix:*'"; \
+		exit 1; \
+	fi
+	@echo "Menghapus keys dengan pola: $(KEY)"
+	@$(REDIS_CMD) --scan --pattern '$(KEY)' | xargs -r $(REDIS_CMD) DEL
+	@echo "✓ Keys dengan pola tersebut berhasil dihapus."

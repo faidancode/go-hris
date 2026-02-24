@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"time"
 
@@ -15,8 +14,8 @@ import (
 
 const (
 	// Prefix untuk Department
-	DepartmentAllKeyPrefix = "positions:all:"
-	DepartmentDetailPrefix = "positions:detail:"
+	DepartmentAllKeyPrefix = "departments:all:"
+	DepartmentDetailPrefix = "departments:detail:"
 )
 
 // Helper untuk mendapatkan key lengkap
@@ -86,8 +85,8 @@ func (s *service) GetAll(
 	ctx context.Context,
 	companyID string,
 ) ([]DepartmentResponse, error) {
-	// Definisikan Key yang unik per Company
-	cacheKey := fmt.Sprintf("departments:all:%s", companyID)
+	// Definisikan key cache yang unik per company (konsisten dengan invalidation)
+	cacheKey := GetDepartmentAllKey(companyID)
 
 	// Coba ambil dari Redis
 	if s.rdb != nil {

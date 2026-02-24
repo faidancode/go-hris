@@ -28,7 +28,7 @@ func (r *repository) Create(ctx context.Context, u *User) error {
 	return r.db.WithContext(ctx).Create(u).Error
 }
 
-func (r *repository) FindByID(ctx context.Context, id string, companyID string) (*User, error) {
+func (r *repository) FindByID(ctx context.Context, companyID string, id string) (*User, error) {
 	var u User
 	err := r.db.WithContext(ctx).
 		Scopes(tenant.Scope(companyID)).
@@ -48,13 +48,23 @@ func (r *repository) FindAllByCompany(ctx context.Context, companyID string) ([]
 	var users []User
 
 	err := r.db.WithContext(ctx).
-		Joins("Employee").               // GORM otomatis join ke tabel employees
-		Scopes(tenant.Scope(companyID)). // Menggunakan Scope untuk filter company_id
+		Joins("Employee").                        // GORM otomatis join ke tabel employees
+		Where("users.company_id = ?", companyID). // Hindari ambiguous column dengan tabel join
 		Find(&users).Error
 
 	return users, err
 }
 
 func (r *repository) Update(ctx context.Context, u *User) error {
-	return r.db.WithContext(ctx).Save(u).Error
+	columns := []string{"IsActive", "UpdatedAt"}
+
+	// Jika password diisi (misal hasil dari hashing di service), sertakan di update
+	if u.Password != "" {
+		columns = append(columns, "Password")
+	}
+
+	return r.db.WithContext(ctx).
+		Model(u).
+		Select(columns).
+		Updates(u).Error
 }

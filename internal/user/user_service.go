@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"go-hris/internal/shared/contextutil"
+	usererrors "go-hris/internal/user/errors"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -39,14 +40,9 @@ func (s *service) GetAll(ctx context.Context, companyID string) ([]UserResponse,
 		return nil, err
 	}
 
-	var resp []UserResponse
-	for _, u := range users {
-		resp = append(resp, UserResponse{
-			ID:         u.ID.String(),
-			Email:      u.Email,
-			EmployeeID: u.EmployeeID.String(),
-			CreatedAt:  u.CreatedAt.String(),
-		})
+	resp := make([]UserResponse, len(users))
+	for i, u := range users {
+		resp[i] = mapToResponse(u)
 	}
 
 	return resp, nil
@@ -62,7 +58,8 @@ func (s *service) GetByID(ctx context.Context, companyID, id string) (UserRespon
 		ID:         u.ID.String(),
 		Email:      u.Email,
 		EmployeeID: u.EmployeeID.String(),
-		CreatedAt:  u.CreatedAt.String(),
+		IsActive:   u.IsActive,
+		CreatedAt:  u.CreatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
@@ -80,8 +77,16 @@ func (s *service) Create(ctx context.Context, companyID string, req CreateUserRe
 		return UserResponse{}, err
 	}
 
+	companyUUID, err := uuid.Parse(companyID)
+	if err != nil {
+		return UserResponse{}, usererrors.ErrInvalidCompanyID
+	}
+
 	u := &User{
+		CompanyID:  companyUUID,
 		EmployeeID: uuid.MustParse(req.EmployeeID),
+		Name:       req.Email, // fallback; profile name mengikuti employee record pada layer lain
+		Role:       "EMPLOYEE",
 		Email:      req.Email,
 		Password:   string(hashedPassword),
 		IsActive:   true,

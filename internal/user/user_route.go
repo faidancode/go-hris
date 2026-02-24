@@ -36,6 +36,12 @@ func RegisterRoutes(
 			handler.Create,
 		)
 
+		users.PATCH("/:id/status",
+			middleware.RateLimitByUser(0.5, 2),
+			middleware.RBACAuthorize(rbacService, "user", "update"),
+			handler.ToggleStatus,
+		)
+
 		// Self reset password (misalnya user reset miliknya sendiri)
 		users.POST("/:id/reset-password",
 			middleware.RateLimitByUser(0.5, 2),

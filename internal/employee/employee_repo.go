@@ -93,7 +93,7 @@ func (r *repository) FindOptionsByCompany(ctx context.Context, companyID string)
 	var emps []Employee
 	err := r.db.WithContext(ctx).
 		Scopes(tenant.Scope(companyID)).
-		Select("id", "employee_number", "full_name"). // Hanya ambil field yang diperlukan
+		Select("id", "employee_number", "full_name", "email"). // Hanya ambil field opsi
 		Order("full_name ASC").
 		Find(&emps).Error
 	return emps, err
