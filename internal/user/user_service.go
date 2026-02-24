@@ -5,6 +5,7 @@ import (
 	"errors"
 	"go-hris/internal/shared/contextutil"
 	usererrors "go-hris/internal/user/errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -15,10 +16,12 @@ import (
 
 type Service interface {
 	GetAll(ctx context.Context, companyID string) ([]UserResponse, error)
+	GetAllWithRoles(ctx context.Context, companyID string) ([]UserWithRolesResponse, error)
 	GetByID(ctx context.Context, companyID, id string) (UserResponse, error)
 
 	Create(ctx context.Context, companyID string, req CreateUserRequest) (UserResponse, error)
 	GetCompanyUsers(ctx context.Context, companyID string) ([]UserResponse, error)
+	AssignRole(ctx context.Context, companyID string, userID string, roleName string) error
 	ToggleStatus(ctx context.Context, companyID string, id string, isActive bool) error
 
 	ChangePassword(ctx context.Context, companyID, userID, currentPassword, newPassword string) error
@@ -27,11 +30,23 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo         Repository
+	roleAssigner RoleAssigner
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+type RoleAssigner interface {
+	AssignRoleToEmployee(companyID, employeeID, roleName string) error
+}
+
+func NewService(repo Repository, roleAssigner ...RoleAssigner) Service {
+	var assigner RoleAssigner
+	if len(roleAssigner) > 0 {
+		assigner = roleAssigner[0]
+	}
+	return &service{
+		repo:         repo,
+		roleAssigner: assigner,
+	}
 }
 
 func (s *service) GetAll(ctx context.Context, companyID string) ([]UserResponse, error) {
@@ -61,6 +76,33 @@ func (s *service) GetByID(ctx context.Context, companyID, id string) (UserRespon
 		IsActive:   u.IsActive,
 		CreatedAt:  u.CreatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
+}
+
+func (s *service) GetAllWithRoles(ctx context.Context, companyID string) ([]UserWithRolesResponse, error) {
+	users, err := s.repo.FindAllByCompanyWithRoles(ctx, companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]UserWithRolesResponse, 0, len(users))
+	for _, u := range users {
+		roles := []string{}
+		if strings.TrimSpace(u.RolesRaw) != "" {
+			roles = strings.Split(u.RolesRaw, ",")
+		}
+
+		resp = append(resp, UserWithRolesResponse{
+			ID:         u.ID,
+			EmployeeID: u.EmployeeID,
+			Email:      u.Email,
+			FullName:   u.FullName,
+			IsActive:   u.IsActive,
+			Roles:      roles,
+			CreatedAt:  u.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return resp, nil
 }
 
 func (s *service) Create(ctx context.Context, companyID string, req CreateUserRequest) (UserResponse, error) {
@@ -116,6 +158,19 @@ func (s *service) GetCompanyUsers(ctx context.Context, companyID string) ([]User
 	}
 
 	return res, nil
+}
+
+func (s *service) AssignRole(ctx context.Context, companyID string, userID string, roleName string) error {
+	if s.roleAssigner == nil {
+		return errors.New("role assigner is not configured")
+	}
+
+	u, err := s.repo.FindByID(ctx, companyID, userID)
+	if err != nil {
+		return err
+	}
+
+	return s.roleAssigner.AssignRoleToEmployee(companyID, u.EmployeeID.String(), strings.TrimSpace(roleName))
 }
 
 func (s *service) ToggleStatus(ctx context.Context, companyID string, id string, isActive bool) error {

@@ -24,6 +24,12 @@ func RegisterRoutes(
 			handler.GetAll,
 		)
 
+		users.GET("/with-roles",
+			middleware.RateLimitByUser(3, 10),
+			middleware.RBACAuthorize(rbacService, "user", "read"),
+			handler.GetAllWithRoles,
+		)
+
 		users.GET("/:id",
 			middleware.RateLimitByUser(3, 10),
 			middleware.RBACAuthorize(rbacService, "user", "read"),
@@ -40,6 +46,12 @@ func RegisterRoutes(
 			middleware.RateLimitByUser(0.5, 2),
 			middleware.RBACAuthorize(rbacService, "user", "update"),
 			handler.ToggleStatus,
+		)
+
+		users.PATCH("/:id/role",
+			middleware.RateLimitByUser(0.5, 2),
+			middleware.RBACAuthorize(rbacService, "role", "manage"),
+			handler.AssignRole,
 		)
 
 		// Self reset password (misalnya user reset miliknya sendiri)

@@ -158,6 +158,43 @@ func (h *Handler) GetCompanyUsers(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
+func (h *Handler) GetAllWithRoles(c *gin.Context) {
+	ctx := c.Request.Context()
+	companyID := c.GetString("company_id")
+
+	res, err := h.svc.GetAllWithRoles(ctx, companyID)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *Handler) AssignRole(c *gin.Context) {
+	companyID := c.GetString("company_id")
+	id := c.Param("id")
+
+	var req AssignRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, apperror.New(
+			apperror.CodeInvalidInput,
+			err.Error(),
+			http.StatusBadRequest,
+		))
+		return
+	}
+
+	ctx := contextutil.WithLogger(c.Request.Context(), h.logger)
+
+	if err := h.svc.AssignRole(ctx, companyID, id, req.RoleName); err != nil {
+		writeError(c, err)
+		return
+	}
+
+	c.Status(http.StatusOK)
+}
+
 func (h *Handler) ToggleStatus(c *gin.Context) {
 	companyID := c.GetString("company_id")
 	id := c.Param("id")

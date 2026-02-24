@@ -55,6 +55,20 @@ func (mr *MockServiceMockRecorder) ChangePassword(ctx, companyID, userID, curren
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChangePassword", reflect.TypeOf((*MockService)(nil).ChangePassword), ctx, companyID, userID, currentPassword, newPassword)
 }
 
+// AssignRole mocks base method.
+func (m *MockService) AssignRole(ctx context.Context, companyID, userID, roleName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AssignRole", ctx, companyID, userID, roleName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AssignRole indicates an expected call of AssignRole.
+func (mr *MockServiceMockRecorder) AssignRole(ctx, companyID, userID, roleName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AssignRole", reflect.TypeOf((*MockService)(nil).AssignRole), ctx, companyID, userID, roleName)
+}
+
 // Create mocks base method.
 func (m *MockService) Create(ctx context.Context, companyID string, req user.CreateUserRequest) (user.UserResponse, error) {
 	m.ctrl.T.Helper()
@@ -97,6 +111,21 @@ func (m *MockService) GetAll(ctx context.Context, companyID string) ([]user.User
 func (mr *MockServiceMockRecorder) GetAll(ctx, companyID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockService)(nil).GetAll), ctx, companyID)
+}
+
+// GetAllWithRoles mocks base method.
+func (m *MockService) GetAllWithRoles(ctx context.Context, companyID string) ([]user.UserWithRolesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllWithRoles", ctx, companyID)
+	ret0, _ := ret[0].([]user.UserWithRolesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllWithRoles indicates an expected call of GetAllWithRoles.
+func (mr *MockServiceMockRecorder) GetAllWithRoles(ctx, companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllWithRoles", reflect.TypeOf((*MockService)(nil).GetAllWithRoles), ctx, companyID)
 }
 
 // GetByID mocks base method.

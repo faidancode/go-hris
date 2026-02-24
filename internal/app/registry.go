@@ -65,7 +65,7 @@ func registerModules(
 	leaveService := leave.NewService(db, leaveRepo)
 	payrollService := payroll.NewServiceWithOutbox(db, payrollRepo, outboxRepo)
 	positionService := position.NewService(db, positionRepo, rdb)
-	userService := user.NewService(userRepo)
+	userService := user.NewService(userRepo, rbacService)
 
 	// --- Handlers ---
 	companyHandler := company.NewHandler(companyService)

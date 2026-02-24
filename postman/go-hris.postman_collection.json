@@ -829,6 +829,183 @@
       ]
     },
     {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/users"
+          }
+        },
+        {
+          "name": "Get All Users With Roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = [];",
+                  "try { jsonData = pm.response.json(); } catch (e) {}",
+                  "if (Array.isArray(jsonData) && jsonData.length > 0 && jsonData[0].id) {",
+                  "  pm.collectionVariables.set('user_id', jsonData[0].id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/users/with-roles"
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": "{{base_url}}/{{api_prefix}}/users/{{user_id}}"
+          }
+        },
+        {
+          "name": "Create User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let jsonData = {};",
+                  "try { jsonData = pm.response.json(); } catch (e) {}",
+                  "if (jsonData.id) pm.collectionVariables.set('user_id', jsonData.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employee_id\": \"{{employee_target_id}}\",\n  \"email\": \"new.user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/users"
+          }
+        },
+        {
+          "name": "Assign Role To User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_name\": \"HR\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/users/{{user_id}}/role"
+          }
+        },
+        {
+          "name": "Toggle User Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": true\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/users/{{user_id}}/status"
+          }
+        },
+        {
+          "name": "Reset User Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_password\": \"password123\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/users/{{user_id}}/reset-password"
+          }
+        },
+        {
+          "name": "Force Reset User Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_password\": \"password123\"\n}"
+            },
+            "url": "{{base_url}}/{{api_prefix}}/users/{{user_id}}/force-reset-password"
+          }
+        }
+      ]
+    },
+    {
       "name": "RBAC",
       "item": [
         {
@@ -996,6 +1173,10 @@
     },
     {
       "key": "employee_target_id",
+      "value": ""
+    },
+    {
+      "key": "user_id",
       "value": ""
     },
     {

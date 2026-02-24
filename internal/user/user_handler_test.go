@@ -19,9 +19,11 @@ import (
 
 type fakeUserService struct {
 	GetAllFn             func(ctx context.Context, companyID string) ([]user.UserResponse, error)
+	GetAllWithRolesFn    func(ctx context.Context, companyID string) ([]user.UserWithRolesResponse, error)
 	GetByIDFn            func(ctx context.Context, companyID, id string) (user.UserResponse, error)
 	CreateFn             func(ctx context.Context, companyID string, req user.CreateUserRequest) (user.UserResponse, error)
 	GetCompanyUsersFn    func(ctx context.Context, companyID string) ([]user.UserResponse, error)
+	AssignRoleFn         func(ctx context.Context, companyID, userID, roleName string) error
 	ToggleStatusFn       func(ctx context.Context, companyID, id string, isActive bool) error
 	ChangePasswordFn     func(ctx context.Context, companyID, id, current, new string) error
 	ResetPasswordFn      func(ctx context.Context, companyID, id, new string) error
@@ -36,11 +38,18 @@ func (f *fakeUserService) GetByID(ctx context.Context, cid, id string) (user.Use
 	return f.GetByIDFn(ctx, cid, id)
 }
 
+func (f *fakeUserService) GetAllWithRoles(ctx context.Context, cid string) ([]user.UserWithRolesResponse, error) {
+	return f.GetAllWithRolesFn(ctx, cid)
+}
+
 func (f *fakeUserService) Create(ctx context.Context, cid string, req user.CreateUserRequest) (user.UserResponse, error) {
 	return f.CreateFn(ctx, cid, req)
 }
 func (f *fakeUserService) GetCompanyUsers(ctx context.Context, cid string) ([]user.UserResponse, error) {
 	return f.GetCompanyUsersFn(ctx, cid)
+}
+func (f *fakeUserService) AssignRole(ctx context.Context, cid, userID, roleName string) error {
+	return f.AssignRoleFn(ctx, cid, userID, roleName)
 }
 func (f *fakeUserService) ToggleStatus(ctx context.Context, cid, id string, isActive bool) error {
 	return f.ToggleStatusFn(ctx, cid, id, isActive)

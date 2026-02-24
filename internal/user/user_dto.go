@@ -19,6 +19,20 @@ type UserResponse struct {
 	CreatedAt  string `json:"created_at"`
 }
 
+type UserWithRolesResponse struct {
+	ID         string   `json:"id"`
+	EmployeeID string   `json:"employee_id"`
+	Email      string   `json:"email"`
+	FullName   string   `json:"full_name,omitempty"`
+	IsActive   bool     `json:"is_active"`
+	Roles      []string `json:"roles"`
+	CreatedAt  string   `json:"created_at"`
+}
+
+type AssignRoleRequest struct {
+	RoleName string `json:"role_name" binding:"required"`
+}
+
 type ForceResetPasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }

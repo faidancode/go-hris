@@ -70,6 +70,21 @@ func (mr *MockRepositoryMockRecorder) FindAllByCompany(ctx, companyID any) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllByCompany", reflect.TypeOf((*MockRepository)(nil).FindAllByCompany), ctx, companyID)
 }
 
+// FindAllByCompanyWithRoles mocks base method.
+func (m *MockRepository) FindAllByCompanyWithRoles(ctx context.Context, companyID string) ([]user.UserWithRolesRow, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindAllByCompanyWithRoles", ctx, companyID)
+	ret0, _ := ret[0].([]user.UserWithRolesRow)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindAllByCompanyWithRoles indicates an expected call of FindAllByCompanyWithRoles.
+func (mr *MockRepositoryMockRecorder) FindAllByCompanyWithRoles(ctx, companyID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllByCompanyWithRoles", reflect.TypeOf((*MockRepository)(nil).FindAllByCompanyWithRoles), ctx, companyID)
+}
+
 // FindByEmail mocks base method.
 func (m *MockRepository) FindByEmail(ctx context.Context, email string) (*user.User, error) {
 	m.ctrl.T.Helper()
