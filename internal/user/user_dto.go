@@ -20,13 +20,14 @@ type UserResponse struct {
 }
 
 type UserWithRolesResponse struct {
-	ID         string   `json:"id"`
-	EmployeeID string   `json:"employee_id"`
-	Email      string   `json:"email"`
-	FullName   string   `json:"full_name,omitempty"`
-	IsActive   bool     `json:"is_active"`
-	Roles      []string `json:"roles"`
-	CreatedAt  string   `json:"created_at"`
+	ID             string   `json:"id"`
+	EmployeeID     string   `json:"employee_id"`
+	EmployeeNumber string   `json:"employee_number"`
+	Email          string   `json:"email"`
+	FullName       string   `json:"full_name,omitempty"`
+	IsActive       bool     `json:"is_active"`
+	Roles          []string `json:"roles"`
+	CreatedAt      string   `json:"created_at"`
 }
 
 type AssignRoleRequest struct {

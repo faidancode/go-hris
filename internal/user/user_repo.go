@@ -20,13 +20,14 @@ type Repository interface {
 }
 
 type UserWithRolesRow struct {
-	ID         string
-	EmployeeID string
-	Email      string
-	FullName   string
-	IsActive   bool
-	CreatedAt  time.Time
-	RolesRaw   string `gorm:"column:roles"`
+	ID             string
+	EmployeeID     string
+	EmployeeNumber string
+	Email          string
+	FullName       string
+	IsActive       bool
+	CreatedAt      time.Time
+	RolesRaw       string `gorm:"column:roles"`
 }
 
 type repository struct {
@@ -92,6 +93,7 @@ func (r *repository) FindAllByCompanyWithRoles(ctx context.Context, companyID st
 			u.employee_id,
 			u.email,
 			e.full_name,
+			e.employee_number,
 			u.is_active,
 			u.created_at,
 			COALESCE(string_agg(DISTINCT r.name, ',' ORDER BY r.name), '') AS roles
@@ -101,7 +103,7 @@ func (r *repository) FindAllByCompanyWithRoles(ctx context.Context, companyID st
 		Joins("LEFT JOIN roles r ON r.id = er.role_id AND r.company_id = u.company_id").
 		Where("u.company_id = ?", companyID).
 		Where("u.deleted_at IS NULL").
-		Group("u.id, u.employee_id, u.email, e.full_name, u.is_active, u.created_at").
+		Group("u.id, u.employee_id, u.email, e.full_name, e.employee_number, u.is_active, u.created_at").
 		Order("u.created_at DESC").
 		Scan(&rows).Error
 	if err != nil {

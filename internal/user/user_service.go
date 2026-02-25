@@ -92,13 +92,14 @@ func (s *service) GetAllWithRoles(ctx context.Context, companyID string) ([]User
 		}
 
 		resp = append(resp, UserWithRolesResponse{
-			ID:         u.ID,
-			EmployeeID: u.EmployeeID,
-			Email:      u.Email,
-			FullName:   u.FullName,
-			IsActive:   u.IsActive,
-			Roles:      roles,
-			CreatedAt:  u.CreatedAt.Format("2006-01-02 15:04:05"),
+			ID:             u.ID,
+			EmployeeID:     u.EmployeeID,
+			EmployeeNumber: u.EmployeeNumber,
+			Email:          u.Email,
+			FullName:       u.FullName,
+			IsActive:       u.IsActive,
+			Roles:          roles,
+			CreatedAt:      u.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 
